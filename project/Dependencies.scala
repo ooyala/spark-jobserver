@@ -23,7 +23,6 @@ object Dependencies {
     yammer,
     yodaTime,
     yodaConvert
-
   )
 
   
@@ -38,14 +37,14 @@ object Dependencies {
   )
 
 
-  lazy val serverDeps = Seq(
+  lazy val serverDeps = apiDeps ++ Seq(
     yodaTime,
     yodaConvert,
     // Force netty version.  This avoids some Spark netty dependency problem.
     "io.netty" % "netty" % "3.6.6.Final"
   )
 
-  lazy val commonDeps = Seq(
+  lazy val apiDeps = Seq(
     typeSafeConfig,
     spark
   )

@@ -53,12 +53,14 @@ object JobServerBuild extends Build {
   ) dependsOn(akkaApp, jobServerApi)
 
   lazy val jobServerTestJar = Project(id = "job-server-tests", base = file("job-server-tests"),
-    settings = commonSettings210 ++ Seq(publish      := {},
+    settings = commonSettings210 ++ Seq(libraryDependencies += spark,
+                                        publish      := {},
                                         exportJars := true)   // use the jar instead of target/classes
   ) dependsOn(jobServerApi)
 
   lazy val jobServerApi = Project(id = "job-server-api", base = file("job-server-api"), 
-    settings = commonSettings210 ++ Seq(publish      := {},
+    settings = commonSettings210 ++ Seq(libraryDependencies ++= apiDeps,
+                                        publish      := {},
                                         exportJars := true)   
                                     )
 
@@ -100,7 +102,6 @@ object JobServerBuild extends Build {
     scalacOptions := Seq("-deprecation", "-feature",
                          "-language:implicitConversions", "-language:postfixOps"),
     resolvers    ++= Dependencies.repos,
-    libraryDependencies ++= commonDeps,
     parallelExecution in Test := false,
     // We need to exclude jms/jmxtools/etc because it causes undecipherable SBT errors  :(
     ivyXML :=
