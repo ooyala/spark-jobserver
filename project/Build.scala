@@ -50,13 +50,19 @@ object JobServerBuild extends Build {
           .updateState(Actions.registerAppProcess)
           .dependsOn(products in Compile)
       } )
-  ) dependsOn(akkaApp)
+  ) dependsOn(akkaApp) dependsOn(jobServerApi)
 
   lazy val jobServerTestJar = Project(id = "job-server-tests", base = file("job-server-tests"),
     settings = commonSettings210 ++ Seq(libraryDependencies ++= sparkDeps,
                                         publish      := {},
                                         exportJars := true)   // use the jar instead of target/classes
-  )
+  ) dependsOn(jobServerApi)
+
+  lazy val jobServerApi = Project(id = "job-server-api", base = file("job-server-api"), 
+    settings = commonSettings210 ++ Seq(libraryDependencies ++= sparkDeps,
+                                        publish      := {},
+                                        exportJars := true)   
+                                    )
 
   // This meta-project aggregates all of the sub-projects and can be used to compile/test/style check
   // all of them with a single command.
@@ -65,7 +71,7 @@ object JobServerBuild extends Build {
   // prepend "aaa" to the project name here.
   lazy val aaaMasterProject = Project(
     id = "master", base = file("master")
-  ) aggregate(jobServer, jobServerTestJar, akkaApp
+  ) aggregate(jobServer, jobServerTestJar, akkaApp, jobServerApi
   ) settings(
       parallelExecution in Test := false,
       publish      := {},
