@@ -6,6 +6,8 @@ import org.joda.time.DateTime
 import spark.jobserver.io.JobDAO
 import spark.jobserver.util.{ContextURLClassLoader, LRUCache}
 
+import spark.jobserver.api.SparkJob
+
 case class JobJarInfo(constructor: () => SparkJob,
                       className: String,
                       jarFilePath: String)

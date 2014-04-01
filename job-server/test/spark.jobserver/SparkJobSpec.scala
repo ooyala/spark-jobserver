@@ -3,6 +3,8 @@ package spark.jobserver
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
 
+import spark.jobserver.api.{SparkJobValid, SparkJobInvalid}
+
 class SparkJobSpec extends FunSpec with ShouldMatchers{
   val validSparkValidation = SparkJobValid
   val invalidSparkValidation = SparkJobInvalid("Sample message 1")

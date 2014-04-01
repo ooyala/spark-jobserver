@@ -1,4 +1,4 @@
-package spark.jobserver
+package spark.jobserver.api
 
 import akka.util.Timeout
 import java.lang.ThreadLocal

@@ -4,6 +4,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.spark._
 import scala.util.Try
 import java.util.{Random, Date}
+import spark.jobserver.api._
 
 /**
  * A long job for stress tests purpose.
