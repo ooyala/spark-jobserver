@@ -29,7 +29,7 @@ object JobServerBuild extends Build {
 
   lazy val jobServer = Project(id = "job-server", base = file("job-server"),
     settings = commonSettings210 ++ Assembly.settings ++ Revolver.settings ++ Seq(
-      libraryDependencies ++= sparkDeps ++ coreTestDeps,
+      libraryDependencies ++= serverDeps ++ coreTestDeps ,
 
       // Automatically package the test jar when we run tests here
       // And always do a clean before package (package depends on clean) to clear out multiple versions
@@ -50,17 +50,15 @@ object JobServerBuild extends Build {
           .updateState(Actions.registerAppProcess)
           .dependsOn(products in Compile)
       } )
-  ) dependsOn(akkaApp) dependsOn(jobServerApi)
+  ) dependsOn(akkaApp, jobServerApi)
 
   lazy val jobServerTestJar = Project(id = "job-server-tests", base = file("job-server-tests"),
-    settings = commonSettings210 ++ Seq(libraryDependencies ++= sparkDeps,
-                                        publish      := {},
+    settings = commonSettings210 ++ Seq(publish      := {},
                                         exportJars := true)   // use the jar instead of target/classes
   ) dependsOn(jobServerApi)
 
   lazy val jobServerApi = Project(id = "job-server-api", base = file("job-server-api"), 
-    settings = commonSettings210 ++ Seq(libraryDependencies ++= sparkDeps,
-                                        publish      := {},
+    settings = commonSettings210 ++ Seq(publish      := {},
                                         exportJars := true)   
                                     )
 

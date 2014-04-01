@@ -7,21 +7,26 @@ object Dependencies {
   val excludeNetty = ExclusionRule(organization = "org.jboss.netty")
   val excludeAsm = ExclusionRule(organization = "asm")
 
+  lazy val spark = "org.apache.spark" %% "spark-core" % "0.9.0-incubating" % "provided" exclude("io.netty", "netty-all")
+  lazy val typeSafeConfig = "com.typesafe" % "config" % "1.0.0"
+  lazy val yodaConvert = "org.joda" % "joda-convert" % "1.2"
+  lazy val yodaTime = "joda-time" % "joda-time" % "2.1"
+  lazy val yammer = "com.yammer.metrics" % "metrics-core" % "2.2.0"
+
   lazy val akkaDeps = Seq(
     // Akka is provided because Spark already includes it, and Spark's version is shaded so it's not safe
     // to use this one
     "com.typesafe.akka" %% "akka-slf4j" % "2.2.4" % "provided",
     "io.spray" %% "spray-json" % "1.2.5",
     "io.spray" % "spray-can" % "1.2.0",
-    "io.spray" % "spray-routing" % "1.2.0"
+    "io.spray" % "spray-routing" % "1.2.0",
+    yammer,
+    yodaTime,
+    yodaConvert
+
   )
 
-  lazy val sparkDeps = Seq(
-    "org.apache.spark" %% "spark-core" % "0.9.0-incubating" % "provided" exclude("io.netty", "netty-all"),
-    // Force netty version.  This avoids some Spark netty dependency problem.
-    "io.netty" % "netty" % "3.6.6.Final"
-  )
-
+  
   lazy val logbackDeps = Seq(
     "ch.qos.logback" % "logback-classic" % "1.0.7"
   )
@@ -32,12 +37,19 @@ object Dependencies {
     "io.spray" % "spray-testkit" % "1.2.0" % "test"
   )
 
-  lazy val commonDeps = Seq(
-    "com.typesafe" % "config" % "1.0.0",
-    "joda-time" % "joda-time" % "2.1",
-    "org.joda" % "joda-convert" % "1.2",
-    "com.yammer.metrics" % "metrics-core" % "2.2.0"
+
+  lazy val serverDeps = Seq(
+    yodaTime,
+    yodaConvert,
+    // Force netty version.  This avoids some Spark netty dependency problem.
+    "io.netty" % "netty" % "3.6.6.Final"
   )
+
+  lazy val commonDeps = Seq(
+    typeSafeConfig,
+    spark
+  )
+  
 
   val repos = Seq(
     "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/",
