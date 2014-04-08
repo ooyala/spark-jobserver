@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 
-import spark.jobserver.api._
+import spark.jobserver.api.{SparkJob, SparkJobValidation, SparkJobValid, NamedRddSupport}
 
 
 trait SparkTestJob extends SparkJob {
