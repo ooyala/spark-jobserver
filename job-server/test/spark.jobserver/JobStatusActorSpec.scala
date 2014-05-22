@@ -7,7 +7,6 @@ import org.joda.time.DateTime
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter, BeforeAndAfterAll}
 
-
 object JobStatusActorSpec {
   val system = ActorSystem("test")
 }
@@ -15,6 +14,7 @@ object JobStatusActorSpec {
 class JobStatusActorSpec extends TestKit(JobStatusActorSpec.system) with ImplicitSender
 with FunSpec with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
 
+  import com.typesafe.config._
   import CommonMessages._
   import JobStatusActor._
 
@@ -24,6 +24,7 @@ with FunSpec with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
   private val jarInfo = JarInfo(appName, DateTime.now)
   private val classPath = "classPath"
   private val jobInfo = JobInfo(jobId, contextName, jarInfo, classPath, DateTime.now, None, None)
+  private val jobConfig = ConfigFactory.empty()
 
   override def afterAll() {
     ooyala.common.akka.AkkaTestUtils.shutdownAndWait(JobStatusActorSpec.system)

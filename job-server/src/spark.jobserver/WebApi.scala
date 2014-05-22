@@ -3,7 +3,7 @@ package spark.jobserver
 import akka.actor.{ ActorSystem, ActorRef }
 import akka.pattern.ask
 import akka.util.Timeout
-import com.typesafe.config.{ Config, ConfigFactory, ConfigException }
+import com.typesafe.config.{ Config, ConfigFactory, ConfigException, ConfigRenderOptions }
 import java.util.NoSuchElementException
 import ooyala.common.akka.web.{ WebService, CommonRoutes }
 import org.joda.time.DateTime
@@ -103,7 +103,7 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
          *    All options are merged into the defaults in spark.context-settings
          *
          * @optional @param num-cpu-cores Int - Number of cores the context will use
-         * @optional @param mem-per-node String - -Xmx style string (512m, 1g, etc) for max memory per worker node
+         * @optional @param mem-per-node String - -Xmx style string (512m, 1g, etc) for max memory per node
          * @return the string "OK", or error if context exists or could not be initialized
          */
         path(Segment) { (contextName) =>
@@ -142,16 +142,14 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
   }
 
   def otherRoutes: Route = get {
-    // Main index.html page
+    implicit val ar = actorRefFactory
+
     path("") {
-      //      respondWithMediaType(MediaTypes.`text/html`) { ctx =>
-      //         // Marshal to HTML so page displays in browsers
-      //         (supervisor ? ListJobs).mapTo[Seq[JobInfo]].map { jobs =>
-      //           val currentJobs = jobs.filter { _.endTime == None }
-      //           ctx.complete(HtmlUtils.jobsList("Current Jobs", currentJobs))
-      //         }
-      //      }
-      complete("Not implemented")
+      // Main index.html page
+      getFromResource("html/index.html")
+    } ~ pathPrefix("html") {
+      // Static files needed by index.html
+      getFromResourceDirectory("html")
     } ~ path("healthz") {
       complete("OK")
     }
@@ -165,27 +163,45 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
    * Main routes for starting a job, listing existing jobs, getting job results
    */
   def jobRoutes: Route = pathPrefix("jobs") {
-
+    import JobInfoActor._
     import JobManagerActor._
 
-    // GET /jobs/<jobId>  returns the result in JSON form in a table
-    //  JSON result always starts with: {"status": "ERROR" / "OK" / "RUNNING"}
-    // If the job isn't finished yet, then {"status": "RUNNING" | "ERROR"} is returned.
-    (get & path(Segment)) { jobId =>
-      val future = jobInfo ? GetJobResult(jobId)
+    /**
+     * GET /jobs/<jobId>/config -- returns the configuration used to launch this job or an error if not found.
+     *
+     * @required @param jobId
+     */
+    (get & path(Segment / "config")) { jobId =>
+      val renderOptions = ConfigRenderOptions.defaults().setComments(false).setOriginComments(false)
+
+      val future = jobInfo ? GetJobConfig(jobId)
       respondWithMediaType(MediaTypes.`application/json`) { ctx =>
         future.map {
           case NoSuchJobId =>
             notFound(ctx, "No such job ID " + jobId.toString)
-          case JobInfo(_, _, _, _, _, None, _) =>
-            ctx.complete(Map(StatusKey -> "RUNNING"))
-          case JobInfo(_, _, _, _, _, _, Some(ex)) =>
-            ctx.complete(Map(StatusKey -> "ERROR", "ERROR" -> formatException(ex)))
-          case JobResult(_, result) =>
-            ctx.complete(resultToTable(result))
+          case cnf: Config =>
+            ctx.complete(cnf.root().render(renderOptions))
         }
       }
     } ~
+      // GET /jobs/<jobId>  returns the result in JSON form in a table
+      //  JSON result always starts with: {"status": "ERROR" / "OK" / "RUNNING"}
+      // If the job isn't finished yet, then {"status": "RUNNING" | "ERROR"} is returned.
+      (get & path(Segment)) { jobId =>
+        val future = jobInfo ? GetJobResult(jobId)
+        respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+          future.map {
+            case NoSuchJobId =>
+              notFound(ctx, "No such job ID " + jobId.toString)
+            case JobInfo(_, _, _, _, _, None, _) =>
+              ctx.complete(Map(StatusKey -> "RUNNING"))
+            case JobInfo(_, _, _, _, _, _, Some(ex)) =>
+              ctx.complete(Map(StatusKey -> "ERROR", "ERROR" -> formatException(ex)))
+            case JobResult(_, result) =>
+              ctx.complete(resultToTable(result))
+          }
+        }
+      } ~
       /**
        * GET /jobs   -- returns a JSON list of hashes containing job status, ex:
        * [
@@ -196,7 +212,7 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
       get {
         parameters('limit.as[Int] ?) { (limitOpt) =>
           val limit = limitOpt.getOrElse(DefaultJobLimit)
-          val future = (jobInfo ? JobInfoActor.GetJobStatuses(Some(limit))).mapTo[Seq[JobInfo]]
+          val future = (jobInfo ? GetJobStatuses(Some(limit))).mapTo[Seq[JobInfo]]
           respondWithMediaType(MediaTypes.`application/json`) { ctx =>
             future.map { infos =>
               val jobReport = infos.map { info =>
@@ -239,7 +255,8 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
             (appName, classPath, contextOpt, syncOpt, timeoutOpt) =>
               try {
                 val async = !syncOpt.getOrElse(false)
-                val jobConfig = ConfigFactory.parseString(configString).withFallback(config)
+                val postedJobConfig = ConfigFactory.parseString(configString)
+                val jobConfig = postedJobConfig.withFallback(config)
                 val contextConfig = Try(jobConfig.getConfig("spark.context-settings")).
                                       getOrElse(ConfigFactory.empty)
                 val jobManager = getJobManagerForContext(contextOpt, contextConfig, classPath)
@@ -252,6 +269,7 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
                     case JobResult(_, res)       => ctx.complete(resultToTable(res))
                     case JobErroredOut(_, _, ex) => ctx.complete(errMap(ex, "ERROR"))
                     case JobStarted(jobId, context, _) =>
+                      jobInfo ! StoreJobConfig(jobId, postedJobConfig)
                       ctx.complete(202, Map[String, Any](
                                           StatusKey -> "STARTED",
                                           ResultKey -> Map("jobId" -> jobId, "context" -> context)))
@@ -326,10 +344,11 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
                                       classPath: String): Option[ActorRef] = {
     import ContextSupervisor._
     val msg =
-      if (context.isDefined)
+      if (context.isDefined) {
         GetContext(context.get)
-      else
+      } else {
         GetAdHocContext(classPath, contextConfig)
+      }
     Await.result(supervisor ? msg, contextTimeout.seconds) match {
       case (manager: ActorRef, resultActor: ActorRef) => Some(manager)
       case NoSuchContext                              => None

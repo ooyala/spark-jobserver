@@ -1,9 +1,10 @@
 package spark.jobserver
 
+import com.typesafe.config.Config
 import java.io.{BufferedOutputStream, FileOutputStream}
-import spark.jobserver.io.{JobDAO, JobInfo}
 import org.joda.time.DateTime
 import scala.collection.mutable
+import spark.jobserver.io.{JobDAO, JobInfo}
 
 /**
  * In-memory DAO for easy unit testing
@@ -15,11 +16,11 @@ class InMemoryDAO extends JobDAO {
     jars((appName, uploadTime)) = jarBytes
   }
 
-  def getApps(): Map[String, Seq[DateTime]] = {
+  def getApps(): Map[String, DateTime] = {
     jars.keys
       .groupBy(_._1)
       .map { case (appName, appUploadTimeTuples) =>
-        appName -> appUploadTimeTuples.map(_._2).toSeq
+        appName -> appUploadTimeTuples.map(_._2).toSeq.head
       }.toMap
   }
 
@@ -41,4 +42,10 @@ class InMemoryDAO extends JobDAO {
   def saveJobInfo(jobInfo: JobInfo) { jobInfos(jobInfo.jobId) = jobInfo }
 
   def getJobInfos(): Map[String, JobInfo] = jobInfos.toMap
+
+  val jobConfigs = mutable.HashMap.empty[String, Config]
+
+  def saveJobConfig(jobId: String, jobConfig: Config) { jobConfigs(jobId) = jobConfig }
+
+  def getJobConfigs(): Map[String, Config] = jobConfigs.toMap
 }

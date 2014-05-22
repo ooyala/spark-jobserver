@@ -101,6 +101,15 @@ Now let's run the job in the context and get the results back right away:
 
 Note the addition of `context=` and `sync=true`.
 
+## Create a Job Server Project
+In your `build.sbt`, add this to use the job server jar:
+
+	resolvers += "Ooyala Bintray" at "http://dl.bintray.com/ooyala/maven"
+
+	libraryDependencies += "ooyala.cnd" % "job-server" % "0.3.1" % "provided"                                                                                                                                                                                                             
+
+For most use cases it's better to have the dependencies be "provided" because you don't want SBT assembly to include the whole job server jar.
+
 ## Deployment
 
 1. Copy `config/local.sh.template` to `<environment>.sh` and edit as appropriate.
@@ -144,9 +153,10 @@ Jobs submitted to the job server must implement a `SparkJob` trait.  It has a ma
 passed a SparkContext and a typesafe Config object.  Results returned by the method are made available through
 the REST API.
 
-    GET /jobs             - Lists the last N jobs
-    POST /jobs            - Starts a new job, use ?sync=true to wait for results
-    GET /jobs/<jobId>     - gets the result or status of a specific job
+    GET /jobs                - Lists the last N jobs
+    POST /jobs               - Starts a new job, use ?sync=true to wait for results
+    GET /jobs/<jobId>        - Gets the result or status of a specific job
+    GET /jobs/<jobId>/config - Gets the job configuration
 
 ### Context configuration
 
@@ -201,10 +211,17 @@ Contributions via Github Pull Request are welcome.  See the TODO for some ideas.
 - From the "master" project, please run "test" to ensure nothing is broken.
    - You may need to set `SPARK_LOCAL_IP` to `localhost` to ensure Akka port can bind successfully
 - Logging for tests goes to "job-server-test.log"
+- Run `scoverage:test` to check the code coverage and improve it
 - Please run scalastyle to ensure your code changes don't break the style guide
 - Do "re-start" from SBT for quick restarts of the job server process
 - Please update the g8 template if you change the SparkJob API
 
+### Publishing packages
+
+- Be sure you are in the master project
+- Run `test` to ensure all tests pass
+- Now just run `publish` and package will be published to bintray
+  
 ## License
 Apache 2.0, see LICENSE.md
 
@@ -224,4 +241,3 @@ Copyright(c) 2014, Ooyala, Inc.
 - Stream the current job progress via a Listener
 - Add routes to return stage info for a job.  Persist it via DAO so that we can always retrieve stage / performance info
   even for historical jobs.  This would be pretty kickass.
-- Store the config used to launch a job.  Again good for reproducability.

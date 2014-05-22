@@ -2,7 +2,7 @@ package spark.jobserver
 
 import akka.actor.{ActorRef, Props, PoisonPill}
 import com.typesafe.config.Config
-import java.net.URL
+import java.net.{URI, URL}
 import java.util.concurrent.atomic.AtomicInteger
 import ooyala.common.akka.InstrumentedActor
 import org.apache.spark.{ SparkEnv, SparkContext }
@@ -27,9 +27,9 @@ object JobManagerActor {
   case class JobLoadingError(err: Throwable)
 
   // Akka 2.2.x style actor props for actor creation
-  def props(dao: JobDAO, name: String, master: String, config: Config, isAdHoc: Boolean,
-            resultActorRef: Option[ActorRef] = None) =
-    Props(classOf[JobManagerActor], dao, name, master, config, isAdHoc, resultActorRef)
+  def props(dao: JobDAO, name: String, config: Config, isAdHoc: Boolean,
+            resultActorRef: Option[ActorRef] = None): Props =
+    Props(classOf[JobManagerActor], dao, name, config, isAdHoc, resultActorRef)
 }
 
 /**
@@ -38,19 +38,29 @@ object JobManagerActor {
  * It also creates and supervises a JobResultActor and JobStatusActor, although an existing JobResultActor
  * can be passed in as well.
  *
- * == Configuration ==
+ * == contextConfig ==
  * {{{
  *  num-cpu-cores = 4         # Total # of CPU cores to allocate across the cluster
  *  memory-per-node = 512m    # -Xmx style memory string for total memory to use for executor on one node
- *  dependent-jar-uris = ["local://opt/foo/my-foo-lib.jar"]   # URIs for dependent jars to load for entire context
+ *  dependent-jar-uris = ["local://opt/foo/my-foo-lib.jar"]
+ *                            # URIs for dependent jars to load for entire context
  *  max-jobs-per-context = 4  # Max # of jobs to run at the same time
  *  spark.mesos.coarse = true  # per-context, rather than per-job, resource allocation
  *  rdd-ttl = 24 h            # time-to-live for RDDs in a SparkContext.  Don't specify = forever
  * }}}
+ *
+ * == global configuration ==
+ * {{{
+ *   spark {
+ *     jobserver {
+ *       max-jobs-per-context = 16      # Number of jobs that can be run simultaneously per context
+ *       context-factory = "spark.jobserver.DefaultSparkContextFactory"
+ *     }
+ *   }
+ * }}}
  */
 class JobManagerActor(dao: JobDAO,
                       contextName: String,
-                      sparkMaster: String,
                       contextConfig: Config,
                       isAdHoc: Boolean,
                       resultActorRef: Option[ActorRef] = None) extends InstrumentedActor {
@@ -67,10 +77,7 @@ class JobManagerActor(dao: JobDAO,
   var sparkEnv: SparkEnv = _
   protected var rddManagerActor: ActorRef = _
 
-  private val maxRunningJobs = {
-    val cpuCores = Runtime.getRuntime.availableProcessors
-    Try(contextConfig.getInt("spark.jobserver.max-jobs-per-context")).getOrElse(cpuCores)
-  }
+  private val maxRunningJobs = SparkJobUtils.getMaxRunningJobs(config)
   private val currentRunningJobs = new AtomicInteger(0)
 
   // When the job cache retrieves a jar from the DAO, it also adds it to the SparkContext for distribution
@@ -93,10 +100,12 @@ class JobManagerActor(dao: JobDAO,
   def wrappedReceive: Receive = {
     case Initialize =>
       try {
+        // Load side jars first in case the ContextFactory comes from it
+        getSideJars(contextConfig).foreach { jarUri => jarLoader.addURL(new URL(convertJarUriSparkToJava(jarUri))) }
         sparkContext = createContextFromConfig()
         sparkEnv = SparkEnv.get
         rddManagerActor = context.actorOf(Props(classOf[RddManagerActor], sparkContext), "rdd-manager-actor")
-        getSideJars(contextConfig).foreach { jarPath => sparkContext.addJar(jarPath) }
+        getSideJars(contextConfig).foreach { jarUri => sparkContext.addJar(jarUri) }
         sender ! Initialized(resultActor)
       } catch {
         case t: Throwable =>
@@ -233,21 +242,34 @@ class JobManagerActor(dao: JobDAO,
     }
   }
 
+  // Use our classloader and a factory to create the SparkContext.  This ensures the SparkContext will use
+  // our class loader when it spins off threads, and ensures SparkContext can find the job and dependent jars
+  // when doing serialization, for example.
   def createContextFromConfig(contextName: String = contextName): SparkContext = {
-    val conf = SparkJobUtils.configToSparkConf(config, contextConfig, sparkMaster, contextName)
-
-    // Set number of akka threads
-    // TODO: need to figure out how many extra threads spark needs, besides the job threads
-    conf.set("spark.akka.threads", (maxRunningJobs + 4).toString)
-
-    new SparkContext(conf)
+    val factoryClassName = config.getString("spark.jobserver.context-factory")
+    val factoryClass = jarLoader.loadClass(factoryClassName)
+    val factory = factoryClass.newInstance.asInstanceOf[spark.jobserver.util.SparkContextFactory]
+    Thread.currentThread.setContextClassLoader(jarLoader)
+    factory.makeContext(config, contextConfig, contextName)
   }
 
   // This method should be called after each job is succeeded or failed
   private def postEachJob() {
     // Delete the JobManagerActor after each adhoc job
-    if (isAdHoc)
-      context.parent ! StopContext(contextName) // its parent is LocalContextSupervisorActor
+    if (isAdHoc) context.parent ! StopContext(contextName) // its parent is LocalContextSupervisorActor
+  }
+
+  // Protocol like "local" is supported in Spark for Jar loading, but not supported in Java.
+  // This method helps convert those Spark URI to those supported by Java.
+  // "local" URIs means that the jar must be present on each job server node at the path,
+  // as well as on every Spark worker node at the path.
+  // For the job server, convert the local to a local file: URI since Java URI doesn't understand local:
+  private def convertJarUriSparkToJava(jarUri: String): String = {
+    val uri = new URI(jarUri)
+    uri.getScheme match {
+      case "local" => "file://" + uri.getPath
+      case _ => jarUri
+    }
   }
 
   // "Side jars" are jars besides the main job jar that are needed for running the job.
