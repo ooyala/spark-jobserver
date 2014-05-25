@@ -53,15 +53,14 @@ object JobServerBuild extends Build {
   ) dependsOn(akkaApp, jobServerApi)
 
   lazy val jobServerTestJar = Project(id = "job-server-tests", base = file("job-server-tests"),
-    settings = commonSettings210 ++ Seq(libraryDependencies ++= sparkDeps,
+    settings = commonSettings210 ++ Seq(libraryDependencies ++= sparkDeps ++ apiDeps,
                                         publish      := {},
                                         description := "Test jar for Spark Job Server",
                                         exportJars := true)   // use the jar instead of target/classes
   ) dependsOn(jobServerApi)
 
   lazy val jobServerApi = Project(id = "job-server-api", base = file("job-server-api"), 
-    settings = commonSettings210 ++ Seq(libraryDependencies ++= apiDeps,
-                                        publish      := {},
+    settings = commonSettings210 ++ Seq(publish      := {},
                                         exportJars := true)   
                                     )
 
@@ -72,7 +71,7 @@ object JobServerBuild extends Build {
   // prepend "aaa" to the project name here.
   lazy val aaaMasterProject = Project(
     id = "master", base = file("master")
-  ) aggregate(jobServer, jobServerTestJar, akkaApp
+  ) aggregate(jobServer, jobServerApi, jobServerTestJar, akkaApp
   ) settings(
       parallelExecution in Test := false,
       publish      := {},
@@ -111,7 +110,7 @@ object JobServerBuild extends Build {
     scalacOptions := Seq("-deprecation", "-feature",
                          "-language:implicitConversions", "-language:postfixOps"),
     resolvers    ++= Dependencies.repos,
-    libraryDependencies ++= commonDeps,
+    libraryDependencies ++= apiDeps,
     parallelExecution in Test := false,
     // We need to exclude jms/jmxtools/etc because it causes undecipherable SBT errors  :(
     ivyXML :=
