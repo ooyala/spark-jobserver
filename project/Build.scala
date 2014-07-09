@@ -43,7 +43,7 @@ object JobServerBuild extends Build {
   lazy val akkaApp = Project(id = "akka-app", base = file("akka-app"),
     settings = commonSettings210 ++ Seq(
       description := "Common Akka application stack: metrics, tracing, logging, and more.",
-      libraryDependencies ++= coreTestDeps ++ akkaDeps
+      libraryDependencies ++= coreTestDeps ++ akkaDeps ++ monitoringDeps
     )
   )
 

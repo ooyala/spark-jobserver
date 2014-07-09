@@ -47,14 +47,8 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
 
   val myRoutes = jarRoutes ~ contextRoutes ~ jobRoutes ~ healthzRoutes ~ sparkHealthzRoutes ~ otherRoutes
 
-  val metrics = new MetricRegistry
-  val hotdogCount = metrics.counter(MetricRegistry.name(getClass, "hotdog.consumption.count"))
-  val reporter = JmxReporter.forRegistry(metrics).build()
-
   def start() {
     logger.info("Starting browser web service...")
-    hotdogCount.inc(5)
-    reporter.start()
     WebService.start(myRoutes ~ commonRoutes, system, "0.0.0.0", port)
   }
 

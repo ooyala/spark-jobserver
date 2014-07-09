@@ -54,7 +54,6 @@ object Dependencies {
   lazy val apiDeps = sparkDeps :+ typeSafeConfigDeps
   lazy val monitoringDeps = Seq(
     "com.codahale.metrics" % "metrics-core" % "3.0.1"
-    //"com.codahale.metrics" % "metrics-servlet" % "3.0.1"
   )
 
   val repos = Seq(
