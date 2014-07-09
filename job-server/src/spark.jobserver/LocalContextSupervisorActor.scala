@@ -11,6 +11,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
+import ooyala.common.akka.metrics.MetricsWrapper
 
 /** Messages common to all ContextSupervisors */
 object ContextSupervisor {
@@ -80,6 +81,9 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
   // and there is no way to retrieve results.
   val globalResultActor = context.actorOf(Props[JobResultActor], "global-result-actor")
 
+  // Context metrics
+  val numOfContexts = MetricsWrapper.newCounter(getClass, "numOfContexts")
+
   def wrappedReceive: Receive = {
     case AddContextsFromConfig =>
       addContextsFromConfig(config)
@@ -135,6 +139,8 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
         contexts(name) ! PoisonPill
         contexts.remove(name)
         resultActors.remove(name)
+        if (numOfContexts.getCount > 0)
+          numOfContexts.dec
         sender ! ContextStopped
       } else {
         sender ! NoSuchContext
@@ -160,6 +166,7 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
         logger.info("SparkContext {} initialized", name)
         contexts(name) = ref
         resultActors(name) = resultActor
+        numOfContexts.inc // Increase a metric
         successFunc(ref)
       case Success(JobManagerActor.InitError(t)) =>
         ref ! PoisonPill
