@@ -18,8 +18,18 @@ object MetricsWrapper {
   def newCounter(klass: Class[_], name: String): Counter =
     registry.counter(MetricRegistry.name(klass, name))
 
+  // TODO: Is this necessary???
   def newCounter(klass: Class[_], name: String, scope: String): Counter =
     registry.counter(MetricRegistry.name(klass, name, scope))
+
+  def newTimer(klass: Class[_], name: String): Timer =
+    registry.timer(MetricRegistry.name(klass, name))
+
+  def newHistogram(klass: Class[_], name: String): Histogram =
+    registry.histogram(MetricRegistry.name(klass, name))
+
+  def newMeter(klass: Class[_], name: String): Meter =
+    registry.meter(MetricRegistry.name(klass, name))
 
   def getRegistry: MetricRegistry = {
     return registry
