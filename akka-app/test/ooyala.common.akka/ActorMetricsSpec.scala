@@ -16,7 +16,7 @@ class ActorMetricsSpec extends FunSpec with ShouldMatchers {
       val actor = actorRef.underlyingActor
 
       actorRef ! "me"
-      actor.metricReceiveTimer.count should equal (1)
+      actor.metricReceiveTimer.getCount should equal (1)
     }
   }
 }
