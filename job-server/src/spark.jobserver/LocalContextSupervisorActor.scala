@@ -82,7 +82,7 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
   val globalResultActor = context.actorOf(Props[JobResultActor], "global-result-actor")
 
   // Context metrics
-  val numOfContexts = MetricsWrapper.newCounter(getClass, "numOfContexts")
+  val numOfContexts = MetricsWrapper.newCounter(getClass, "num-contexts")
 
   def wrappedReceive: Receive = {
     case AddContextsFromConfig =>
