@@ -32,6 +32,11 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
   val metricNumJobInfos = MetricsWrapper.newGauge(getClass, "num-running-jobs", infos.size)
   val metricStatusRates = mutable.HashMap.empty[String, Meter]
 
+  // timer for job latency
+  private val jobLatencyTimer = MetricsWrapper.newTimer(getClass, "job-latency");
+  // timer context to measure the job latency (jobId to Timer.Context mapping)
+  private val latencyTimerContextMap = new mutable.HashMap[String, com.codahale.metrics.Timer.Context]
+
   override def wrappedReceive: Receive = {
     case GetRunningJobStatus =>
       sender ! infos.values.toSeq.sortBy(_.startTime) // TODO(kelvinchu): Use toVector instead in Scala 2.10
@@ -63,12 +68,14 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
       }
 
     case msg: JobStarted =>
+      latencyTimerContextMap(msg.jobId) = jobLatencyTimer.time();
       processStatus(msg, "started") {
         case (info, msg) =>
           info.copy(startTime = msg.startTime)
       }
 
     case msg: JobFinished =>
+      stopTimer(msg.jobId)
       processStatus(msg, "finished OK", remove = true) {
         case (info, msg) =>
           info.copy(endTime = Some(msg.endTime))
@@ -81,10 +88,18 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
       }
 
     case msg: JobErroredOut =>
+      stopTimer(msg.jobId)
       processStatus(msg, "finished with an error", remove = true) {
         case (info, msg) =>
           info.copy(endTime = Some(msg.endTime), error = Some(msg.err))
       }
+  }
+
+  private def stopTimer(jobId: String) {
+    latencyTimerContextMap.get(jobId).foreach { timerContext =>
+      timerContext.stop()
+      latencyTimerContextMap.remove(jobId)
+    }
   }
 
   private def processStatus[M <: StatusMessage](msg: M, logMessage: String, remove: Boolean = false)
@@ -107,6 +122,7 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
 
     lazy val getShortName = Try(msgClass.split('.').last).toOption.getOrElse(msgClass)
 
+    // TODO: Resolve the proper naming later
     metricStatusRates.getOrElseUpdate(msgClass, MetricsWrapper.newMeter(getClass, getShortName + ".messages")).mark()
     //metricStatusRates.getOrElseUpdate(msgClass, MetricsWrapper.newMeter(msg.getClass, "messages")).mark()
   }
