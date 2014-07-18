@@ -15,6 +15,11 @@ object MetricsWrapper {
   reporter.start()
   Runtime.getRuntime.addShutdownHook(shutdownHook)
 
+  def newGauge[T](klass: Class[_], name: String, metric: => T): Gauge[T] =
+    registry.register(MetricRegistry.name(klass, name), new Gauge[T] {
+      override def getValue(): T = metric
+    })
+
   def newCounter(klass: Class[_], name: String): Counter =
     registry.counter(MetricRegistry.name(klass, name))
 

@@ -1,9 +1,9 @@
 package spark.jobserver
 
 import akka.actor.ActorRef
-import com.yammer.metrics.core.Meter
+import com.codahale.metrics.Meter
+import ooyala.common.akka.metrics.MetricsWrapper
 import ooyala.common.akka.InstrumentedActor
-import ooyala.common.akka.metrics.YammerMetrics
 import scala.collection.mutable
 import scala.util.Try
 import spark.jobserver.io.{ JobInfo, JobDAO }
@@ -17,7 +17,7 @@ object JobStatusActor {
  * It is an actor to manage job status updates
  *
  */
-class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetrics {
+class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
   import CommonMessages._
   import JobStatusActor._
   import spark.jobserver.util.DateUtils.dateTimeToScalaWrapper
@@ -28,8 +28,8 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetric
   private val subscribers = new mutable.HashMap[String, mutable.MultiMap[Class[_], ActorRef]]
 
   // metrics
-  val metricNumSubscriptions = gauge("num-subscriptions", subscribers.size)
-  val metricNumJobInfos = gauge("num-running-jobs", infos.size)
+  val metricNumSubscriptions = MetricsWrapper.newGauge(getClass, "num-subscriptions", subscribers.size)
+  val metricNumJobInfos = MetricsWrapper.newGauge(getClass, "num-running-jobs", infos.size)
   val metricStatusRates = mutable.HashMap.empty[String, Meter]
 
   override def wrappedReceive: Receive = {
@@ -107,7 +107,8 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetric
 
     lazy val getShortName = Try(msgClass.split('.').last).toOption.getOrElse(msgClass)
 
-    metricStatusRates.getOrElseUpdate(msgClass, meter(getShortName, "messages")).mark()
+    metricStatusRates.getOrElseUpdate(msgClass, MetricsWrapper.newMeter(getClass, getShortName + ".messages")).mark()
+    //metricStatusRates.getOrElseUpdate(msgClass, MetricsWrapper.newMeter(msg.getClass, "messages")).mark()
   }
 
   private def publishMessage(jobId: String, message: StatusMessage) {
