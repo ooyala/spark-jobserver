@@ -34,14 +34,14 @@ class RddManagerActor(sparkContext: SparkContext) extends InstrumentedActor {
   private val inProgress = mutable.Set[String]()
 
   // TODO: Clean this up
-//  val gaugeName = "spark.jobserver.RddManagerActor.rdd-num"
+//  val gaugeName = "spark.jobserver.RddManagerActor.num-rdds"
 //  val gauges = MetricsWrapper.registry.getGauges
 //  var rddNumGauge = gauges.get(gaugeName)
 //  if ( rddNumGauge == null ) {
-//    rddNumGauge = MetricsWrapper.newGauge(getClass, "rdd-num", namesToIds.size)
+//    rddNumGauge = MetricsWrapper.newGauge(getClass, "num-rdds", namesToIds.size)
 //  }
   // TODO: Not being used
-  val rddNumGauge = MetricsWrapper.newGauge(getClass, "rdd-num", namesToIds.size)
+  val rddNumGauge = MetricsWrapper.newGauge(getClass, "num-rdds", namesToIds.size)
 
   def wrappedReceive: Receive = {
     case GetRddRequest(name) => sender ! getExistingRdd(name)
