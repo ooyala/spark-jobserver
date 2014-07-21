@@ -50,7 +50,7 @@ class LocalContextSupervisorSpec extends TestKit(LocalContextSupervisorSpec.syst
 
   val contextConfig = LocalContextSupervisorSpec.config.getConfig("spark.context-settings")
 
-  val counterName = "spark.jobserver.LocalContextSupervisorActor.numOfContexts"
+  val counterName = "spark.jobserver.LocalContextSupervisorActor.num-contexts"
 
   // This is needed to help tests pass on some MBPs when working from home
   System.setProperty("spark.driver.host", "localhost")

@@ -1,6 +1,7 @@
 package ooyala.common.akka.metrics
 
 import com.codahale.metrics._
+import scala.util.Try
 
 object MetricsWrapper {
   val registry: MetricRegistry = new MetricRegistry
@@ -15,10 +16,15 @@ object MetricsWrapper {
   reporter.start()
   Runtime.getRuntime.addShutdownHook(shutdownHook)
 
-  def newGauge[T](klass: Class[_], name: String, metric: => T): Gauge[T] =
-    registry.register(MetricRegistry.name(klass, name), new Gauge[T] {
+  def newGauge[T](klass: Class[_], name: String, metric: => T): Gauge[T] = {
+    val metricName = MetricRegistry.name(klass, name)
+    val gauge = Try(registry.register(metricName, new Gauge[T] {
       override def getValue(): T = metric
-    })
+    })).map { g => g } recover { case _ =>
+      registry.getGauges.get(metricName)
+    }
+    gauge.get.asInstanceOf[Gauge[T]]
+  }
 
   def newCounter(klass: Class[_], name: String): Counter =
     registry.counter(MetricRegistry.name(klass, name))
