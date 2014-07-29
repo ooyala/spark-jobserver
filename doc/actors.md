@@ -41,7 +41,7 @@ A special JobManager for running ad-hoc jobs, which require temporary per-job Jo
 ## JobStatusActor
 
 - one per JobManager
-- Collects and persists job status and progress updates (iucluding exceptions) from every job in JobManager
+- Collects and persists job status and progress updates (including exceptions) from every job in JobManager
     - JDBC updates
     - log file
     - WebSocket?

@@ -44,6 +44,10 @@ object Dependencies {
     "com.yammer.metrics" % "metrics-core" % "2.2.0"
   )
 
+  lazy val monitoringDeps = Seq(
+    "com.codahale.metrics" % "metrics-core" % "3.0.1"
+  )
+
   val repos = Seq(
     "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/",
     "sonatype snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
