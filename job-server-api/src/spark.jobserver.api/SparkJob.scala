@@ -1,4 +1,4 @@
-package spark.jobserver
+package spark.jobserver.api
 
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext

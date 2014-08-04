@@ -3,6 +3,8 @@ package spark.jobserver
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.spark._
 
+import spark.jobserver.api.{SparkJob, SparkJobValidation, SparkJobValid}
+
 /**
  * A very short job for stress tests purpose.
  * Small data. Double every value in the data.

@@ -6,6 +6,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import scala.concurrent.Await
 
+import spark.jobserver.api.NamedRdds
+
 /**
  * An implementation of [[NamedRddSupport]] API for the Job Server.
  * Note that this contains code that executes on the same thread as the job.

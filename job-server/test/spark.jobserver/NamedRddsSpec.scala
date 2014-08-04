@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.spark.SparkContext
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfterAll, BeforeAndAfter}
+import spark.jobserver.api.NamedRdds
 
 class NamedRddsSpec extends TestKit(ActorSystem("NamedRddsSpec")) with FunSpec
 with ImplicitSender with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {

@@ -13,6 +13,8 @@ import spark.jobserver.ContextSupervisor.StopContext
 import spark.jobserver.io.{ JobDAO, JobInfo, JarInfo }
 import spark.jobserver.util.{ContextURLClassLoader, SparkJobUtils}
 
+import spark.jobserver.api.{SparkJobValid, SparkJobInvalid, NamedRddSupport, NamedRdds} 
+
 object JobManagerActor {
   // Messages
   case object Initialize
