@@ -29,6 +29,7 @@ object ContextSupervisor {
   case object ContextAlreadyExists
   case object NoSuchContext
   case object ContextStopped
+  case class ContextJobDaoError(t: Throwable)
 }
 
 /**
@@ -85,7 +86,9 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
       addContextsFromConfig(config)
 
     case ListContexts =>
-      sender ! contexts.keys.toSeq
+      // Available contexts to use include local contexts and those from the DAO.
+      val allContexts = dao.getContexts.map(_._1) ++ contexts.keys
+      sender ! allContexts.toSet.toSeq
 
     case AddContext(name, contextConfig) =>
       val originator = sender // Sender is a mutable reference, must capture in immutable val
@@ -93,10 +96,18 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
       if (contexts contains name) {
         originator ! ContextAlreadyExists
       } else {
-        startContext(name, mergedConfig, false, contextTimeout) { contextMgr =>
-          originator ! ContextInitialized
-        } { err =>
-          originator ! ContextInitError(err)
+        try {
+          logger.info("DAO tries to save context config " + name)
+          dao.saveContextConfig(name, contextConfig)
+
+          startContext(name, mergedConfig, false, contextTimeout) { contextMgr =>
+            originator ! ContextInitialized
+          } { err =>
+            originator ! ContextInitError(err)
+          }
+        } catch {
+          case t: Throwable =>
+            originator ! ContextJobDaoError(t)
         }
       }
 
@@ -126,7 +137,20 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
       if (contexts contains name) {
         sender ! (contexts(name), resultActors(name))
       } else {
-        sender ! NoSuchContext
+        logger.info("DAO tries to load context config " + name)
+
+        val contextConfig = dao.getContextConfig(name)
+        if (contextConfig.isDefined) {
+          val originator = sender
+          val mergedConfig = contextConfig.get.withFallback(defaultContextConfig)
+          startContext(name, mergedConfig, false, contextTimeout) { contextMgr =>
+            originator ! (contexts(name), resultActors(name))
+          } { err =>
+            originator ! ContextInitError(err)
+          }
+        } else {
+          sender ! NoSuchContext
+        }
       }
 
     case StopContext(name) =>
@@ -135,6 +159,7 @@ class LocalContextSupervisorActor(dao: JobDAO) extends InstrumentedActor {
 
         context.watch(contexts(name))
         contexts(name) ! PoisonPill
+        contexts -= name
         resultActors.remove(name)
         sender ! ContextStopped
       } else {
