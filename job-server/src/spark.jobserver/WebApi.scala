@@ -121,6 +121,7 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
                   case ContextInitialized   => ctx.complete(StatusCodes.OK)
                   case ContextAlreadyExists => badRequest(ctx, "context " + contextName + " exists")
                   case ContextInitError(e)  => ctx.complete(500, errMap(e, "CONTEXT INIT ERROR"))
+                  case ContextJobDaoError(e) => ctx.complete(500, errMap(e, "CONTEXT JOBDAO ERROR"))
                 }
               }
             }
