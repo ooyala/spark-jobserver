@@ -84,6 +84,31 @@ trait JobDAO {
     getApps.get(appName)
 
   /**
+   * Return all contexts
+   */
+  def getContexts: Map[String, Config] = {
+    Map()
+  }
+
+  /**
+   * Return the context configuration
+   *
+   * @param name the context name
+   */
+  def getContextConfig(name: String): Option[Config] = {
+    None
+  }
+
+  /**
+   * Persist a context configuration
+   *
+   * @param name the context name
+   * @param config the context configuration
+   */
+  def saveContextConfig(name: String, config: Config) = {
+  }
+
+  /**
    * A safe API for getting values from Typesafe Config, will return a default if the
    * value is missing.  If the value is badly formatted, error still goes through.
    */

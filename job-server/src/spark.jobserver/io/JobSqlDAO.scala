@@ -53,6 +53,13 @@ class JobSqlDAO(config: Config) extends JobDAO {
   }
   private val configs = TableQuery[Configs]
 
+  private class Contexts(tag: Tag) extends Table[(String, String)](tag, "CONTEXTS") {
+    def name = column[String]("NAME", O.PrimaryKey)
+    def config = column[String]("CONFIG")
+    def * = (name, config)
+  }
+  private val contexts = TableQuery[Contexts]
+
   // DB initialization
   private val db = Database.forURL(jdbcConfig.url, driver=jdbcConfig.driver,
     user=jdbcConfig.user, password=jdbcConfig.password)
@@ -74,10 +81,11 @@ class JobSqlDAO(config: Config) extends JobDAO {
 
         if (isAllTablesNotExist()) {
           // All tables don't exist. It's the first time the Job Server runs. So, create all tables.
-          logger.info("Creating JARS, CONFIGS and JOBS tables ...")
+          logger.info("Creating JARS, CONFIGS, JOBS, and CONTEXTS tables ...")
           jars.ddl.create
           configs.ddl.create
           jobs.ddl.create
+          contexts.ddl.create
         } else if (isSomeTablesNotExist()) {
           // Only some tables exist, not all. It means there is data corruption in the metadata-store.
           // Exit the Job Server now.
@@ -94,11 +102,13 @@ class JobSqlDAO(config: Config) extends JobDAO {
 
   // Check if "all tables don't exist" is true
   private def isAllTablesNotExist()(implicit session: Session): Boolean =
-    !isTableExist("JARS") && !isTableExist("CONFIGS") && !isTableExist("JOBS")
+    !isTableExist("JARS") && !isTableExist("CONFIGS") && !isTableExist("JOBS") &&
+      !isTableExist("CONTEXTS")
 
   // Check if "some tables don't exist" is true
   private def isSomeTablesNotExist()(implicit session: Session): Boolean =
-    !isTableExist("JARS") || !isTableExist("CONFIGS") || !isTableExist("JOBS")
+    !isTableExist("JARS") || !isTableExist("CONFIGS") || !isTableExist("JOBS") ||
+      !isTableExist("CONTEXTS")
 
   override def saveJar(appName: String, uploadTime: DateTime, jarBytes: Array[Byte]) {
     // The order is important. Save the jar file first and then log it into database.
@@ -274,6 +284,38 @@ class JobSqlDAO(config: Config) extends JobDAO {
             end.map(convertDateSqlToJoda(_)),
             err.map(new Throwable(_)))
         }.toMap
+    }
+  }
+
+  override def getContexts(): Map[String, Config] = {
+    db withSession {
+      implicit sessions =>
+
+        contexts.list.map {
+          case (name, config) =>
+            (name, ConfigFactory.parseString(config))
+        }.toMap
+    }
+  }
+
+  override def getContextConfig(name: String): Option[Config] = {
+    db withSession {
+      implicit sessions =>
+
+        val query = contexts.filter(_.name === name).list.map {
+          case (_, config) =>
+            ConfigFactory.parseString(config)
+        }
+
+        query.headOption
+    }
+  }
+
+  override def saveContextConfig(name: String, config: Config) = {
+    db withSession {
+      implicit session =>
+
+        contexts += (name, config.root().render(ConfigRenderOptions.concise()))
     }
   }
 }
