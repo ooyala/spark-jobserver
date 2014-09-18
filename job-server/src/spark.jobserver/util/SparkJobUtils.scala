@@ -49,6 +49,10 @@ object SparkJobUtils {
       conf.set(e.getKey, e.getValue.unwrapped.toString)
     }
 
+    for ((key, value) <- conf.getAll) {
+      System.setProperty(key, value)
+    }
+
     conf
   }
 
