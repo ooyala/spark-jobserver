@@ -18,3 +18,5 @@ resolvers += Resolver.url(
         Resolver.ivyStylePatterns)
 
 addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.1")
+
+//addSbtPlugin("com.typesafe.sbt" % "sbt-aspectj" % "0.9.4")

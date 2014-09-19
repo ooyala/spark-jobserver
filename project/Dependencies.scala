@@ -48,6 +48,17 @@ object Dependencies {
     "io.spray" % "spray-testkit" % "1.2.0" % "test"
   )
 
+  val kamonVersion = "0.3.4"
+  val aspectjVersion = "1.8.1"
+
+  lazy val kamonMonitoringDeps = Seq(
+    "io.kamon" %% "kamon-core" % kamonVersion,
+    "io.kamon" %% "kamon-statsd" % kamonVersion,
+    "io.kamon" %% "kamon-log-reporter" % kamonVersion,
+    "io.kamon" %% "kamon-system-metrics" % kamonVersion,
+    "org.aspectj" % "aspectjrt"     % aspectjVersion,
+    "org.aspectj" % "aspectjweaver" % aspectjVersion
+  )
 
   lazy val serverDeps = apiDeps ++ yodaDeps
   lazy val apiDeps = sparkDeps :+ typeSafeConfigDeps
