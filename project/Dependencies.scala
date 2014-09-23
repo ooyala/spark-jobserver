@@ -7,7 +7,7 @@ object Dependencies {
   val excludeNetty = ExclusionRule(organization = "org.jboss.netty")
   val excludeAsm = ExclusionRule(organization = "asm")
 
-  lazy val typeSafeConfigDeps = "com.typesafe" % "config" % "1.0.0"
+  lazy val typeSafeConfigDeps = "com.typesafe" % "config" % "1.0.2"
   lazy val yammerDeps = "com.yammer.metrics" % "metrics-core" % "2.2.0"
 
   lazy val yodaDeps = Seq(
@@ -48,14 +48,14 @@ object Dependencies {
     "io.spray" % "spray-testkit" % "1.2.0" % "test"
   )
 
-  val kamonVersion = "0.3.4"
-  val aspectjVersion = "1.8.1"
+  val kamonVersion = "0.2.4"
+  val aspectjVersion = "1.7.3"
 
   lazy val kamonMonitoringDeps = Seq(
     "io.kamon" %% "kamon-core" % kamonVersion,
-    "io.kamon" %% "kamon-statsd" % kamonVersion,
+    "io.kamon" %% "kamon-datadog" % kamonVersion,
     "io.kamon" %% "kamon-log-reporter" % kamonVersion,
-    "io.kamon" %% "kamon-system-metrics" % kamonVersion,
+    //"io.kamon" %% "kamon-system-metrics" % kamonVersion,
     "org.aspectj" % "aspectjrt"     % aspectjVersion,
     "org.aspectj" % "aspectjweaver" % aspectjVersion
   )

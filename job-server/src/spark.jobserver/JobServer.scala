@@ -30,12 +30,14 @@ object JobServer {
   // we can have something that stores the ActorSystem so it could be shut down easily later.
   def start(args: Array[String], makeSystem: Config => ActorSystem) {
     val defaultConfig = ConfigFactory.load()
+    val abc = defaultConfig.resolve()
     val config = if (args.length > 0) {
       val configFile = new File(args(0))
       if (!configFile.exists()) {
         println("Could not find configuration file " + configFile)
         sys.exit(1)
       }
+      //ConfigFactory.parseFile(configFile).resolveWith(defaultConfig)
       ConfigFactory.parseFile(configFile).withFallback(defaultConfig)
     } else {
       defaultConfig
@@ -44,6 +46,7 @@ object JobServer {
     val port = config.getInt("spark.jobserver.port")
 
     // TODO: Hardcode for now to get going. Make it configurable later.
+    //System.err.println("config: " + config)
     val system = makeSystem(config)
     val clazz = Class.forName(config.getString("spark.jobserver.jobdao"))
     val ctor = clazz.getDeclaredConstructor(Class.forName("com.typesafe.config.Config"))

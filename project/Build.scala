@@ -4,8 +4,8 @@ import sbtassembly.Plugin._
 import AssemblyKeys._
 import spray.revolver.RevolverPlugin._
 import spray.revolver.Actions
-//import com.typesafe.sbt.SbtAspectj._
-//import com.typesafe.sbt.SbtAspectj.AspectjKeys._
+import com.typesafe.sbt.SbtAspectj._
+import com.typesafe.sbt.SbtAspectj.AspectjKeys._
 import com.typesafe.sbt.SbtScalariform._
 import org.scalastyle.sbt.ScalastylePlugin
 import scalariform.formatter.preferences._
@@ -15,6 +15,7 @@ import bintray.Plugin.bintrayPublishSettings
 //  - Multi-JVM testing won't work without it, for now
 //  - You get full IDE support
 object JobServerBuild extends Build {
+
   lazy val dirSettings = Seq(
     unmanagedSourceDirectories in Compile <<= Seq(baseDirectory(_ / "src" )).join,
     unmanagedSourceDirectories in Test <<= Seq(baseDirectory(_ / "test" )).join,
@@ -32,9 +33,10 @@ object JobServerBuild extends Build {
   )
 
   lazy val jobServer = Project(id = "job-server", base = file("job-server"),
-    settings = commonSettings210 ++ Assembly.settings ++ Revolver.settings ++ Seq(
-    //settings = commonSettings210 ++ Assembly.settings ++ Revolver.settings ++ aspectjSettings ++ Seq(
+    //settings = commonSettings210 ++ Assembly.settings ++ Revolver.settings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
+    settings = commonSettings210 ++ Assembly.settings ++ Revolver.settings ++ aspectjSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
       description  := "Spark as a Service: a RESTful job server for Apache Spark",
+      //libraryDependencies ++= sparkDeps ++ slickDeps ++ coreTestDeps, //++ kamonMonitoringDeps,
       libraryDependencies ++= sparkDeps ++ slickDeps ++ coreTestDeps ++ kamonMonitoringDeps,
 
       // Automatically package the test jar when we run tests here
@@ -50,8 +52,8 @@ object JobServerBuild extends Build {
       // Give job server a bit more PermGen since it does classloading
       javaOptions in Revolver.reStart += "-XX:MaxPermSize=256m",
       javaOptions in Revolver.reStart += "-Djava.security.krb5.realm= -Djava.security.krb5.kdc=",
-      //fork in Revolver.reStart := true,
-      //javaOptions in Revolver.reStart <++= AspectjKeys.weaverOptions in Aspectj,
+      fork in Revolver.reStart := true,
+      javaOptions in Revolver.reStart <++= AspectjKeys.weaverOptions in Aspectj,
       // This lets us add Spark back to the classpath without assembly barfing
       fullClasspath in Revolver.reStart := (fullClasspath in Compile).value
       )

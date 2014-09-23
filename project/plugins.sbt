@@ -19,4 +19,8 @@ resolvers += Resolver.url(
 
 addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.1")
 
-//addSbtPlugin("com.typesafe.sbt" % "sbt-aspectj" % "0.9.4")
+//resolvers += Resolver.typesafeRepo("releases")
+//
+//resolvers += "Kamon Releases" at "http://repo.kamon.io"
+//
+addSbtPlugin("com.typesafe.sbt" % "sbt-aspectj" % "0.9.4")
