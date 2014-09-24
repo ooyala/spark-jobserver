@@ -55,9 +55,9 @@ object Dependencies {
     "io.kamon" %% "kamon-core" % kamonVersion,
     "io.kamon" %% "kamon-datadog" % kamonVersion,
     "io.kamon" %% "kamon-log-reporter" % kamonVersion,
-    //"io.kamon" %% "kamon-system-metrics" % kamonVersion,
-    "org.aspectj" % "aspectjrt"     % aspectjVersion,
-    "org.aspectj" % "aspectjweaver" % aspectjVersion
+    "io.kamon" %% "kamon-system-metrics" % kamonVersion
+    //"org.aspectj" % "aspectjrt"     % aspectjVersion,
+    //"org.aspectj" % "aspectjweaver" % aspectjVersion
   )
 
   lazy val serverDeps = apiDeps ++ yodaDeps
