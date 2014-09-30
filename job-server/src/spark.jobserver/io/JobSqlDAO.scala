@@ -9,17 +9,19 @@ import scala.slick.jdbc.meta.MTable
 
 
 class JobSqlDAO(config: Config) extends JobDAO {
-  import scala.slick.driver.H2Driver.simple._
 
   private val logger = LoggerFactory.getLogger(getClass)
-
-  private val rootDir = getOrElse(config.getString("spark.jobserver.sqldao.rootdir"),
-    "/tmp/spark-jobserver/sqldao/data")
+  private val jdbcConfig =
+    JdbcConfigParserFactory.parse(config).getOrElse(H2ConfigParser.defaultConfig)
+  private val rootDir = jdbcConfig.rootDir
   private val rootDirFile = new File(rootDir)
   logger.info("rootDir is " + rootDirFile.getAbsolutePath)
+  logger.info("jdbcConfig " + jdbcConfig.url)
+
+  import jdbcConfig.jdbcProfile.simple._
 
   // Definition of the tables
-  class Jars(tag: Tag) extends Table[(Int, String, Timestamp, Array[Byte])](tag, "JARS") {
+  private class Jars(tag: Tag) extends Table[(Int, String, Timestamp, Array[Byte])](tag, "JARS") {
     def jarId = column[Int]("JAR_ID", O.PrimaryKey, O.AutoInc)
     def appName = column[String]("APP_NAME")
     def uploadTime = column[Timestamp]("UPLOAD_TIME")
@@ -27,12 +29,12 @@ class JobSqlDAO(config: Config) extends JobDAO {
     // Every table needs a * projection with the same type as the table's type parameter
     def * = (jarId, appName, uploadTime, jar)
   }
-  val jars = TableQuery[Jars]
+  private val jars = TableQuery[Jars]
 
   // Explicitly avoiding to label 'jarId' as a foreign key to avoid dealing with
   // referential integrity constraint violations.
-  class Jobs(tag: Tag) extends Table[(String, String, Int, String, Timestamp,
-                                      Option[Timestamp], Option[String])] (tag, "JOBS") {
+  private class Jobs(tag: Tag) extends Table[(String, String, Int, String, Timestamp,
+                                             Option[Timestamp], Option[String])] (tag, "JOBS") {
     def jobId = column[String]("JOB_ID", O.PrimaryKey)
     def contextName = column[String]("CONTEXT_NAME")
     def jarId = column[Int]("JAR_ID") // FK to JARS table
@@ -42,19 +44,25 @@ class JobSqlDAO(config: Config) extends JobDAO {
     def error = column[Option[String]]("ERROR")
     def * = (jobId, contextName, jarId, classPath, startTime, endTime, error)
   }
-  val jobs = TableQuery[Jobs]
+  private val jobs = TableQuery[Jobs]
 
-  class Configs(tag: Tag) extends Table[(String, String)](tag, "CONFIGS") {
+  private class Configs(tag: Tag) extends Table[(String, String)](tag, "CONFIGS") {
     def jobId = column[String]("JOB_ID", O.PrimaryKey)
     def jobConfig = column[String]("JOB_CONFIG")
     def * = (jobId, jobConfig)
   }
-  val configs = TableQuery[Configs]
+  private val configs = TableQuery[Configs]
+
+  private class Contexts(tag: Tag) extends Table[(String, String)](tag, "CONTEXTS") {
+    def name = column[String]("NAME", O.PrimaryKey)
+    def config = column[String]("CONFIG")
+    def * = (name, config)
+  }
+  private val contexts = TableQuery[Contexts]
 
   // DB initialization
-  val defaultJdbcUrl = "jdbc:h2:file:" + rootDir + "/h2-db"
-  val jdbcUrl = getOrElse(config.getString("spark.jobserver.sqldao.jdbc.url"), defaultJdbcUrl)
-  val db = Database.forURL(jdbcUrl, driver = "org.h2.Driver")
+  private val db = Database.forURL(jdbcConfig.url, driver=jdbcConfig.driver,
+    user=jdbcConfig.user, password=jdbcConfig.password)
 
   // Server initialization
   init()
@@ -73,10 +81,11 @@ class JobSqlDAO(config: Config) extends JobDAO {
 
         if (isAllTablesNotExist()) {
           // All tables don't exist. It's the first time the Job Server runs. So, create all tables.
-          logger.info("Creating JARS, CONFIGS and JOBS tables ...")
+          logger.info("Creating JARS, CONFIGS, JOBS, and CONTEXTS tables ...")
           jars.ddl.create
           configs.ddl.create
           jobs.ddl.create
+          contexts.ddl.create
         } else if (isSomeTablesNotExist()) {
           // Only some tables exist, not all. It means there is data corruption in the metadata-store.
           // Exit the Job Server now.
@@ -93,11 +102,13 @@ class JobSqlDAO(config: Config) extends JobDAO {
 
   // Check if "all tables don't exist" is true
   private def isAllTablesNotExist()(implicit session: Session): Boolean =
-    !isTableExist("JARS") && !isTableExist("CONFIGS") && !isTableExist("JOBS")
+    !isTableExist("JARS") && !isTableExist("CONFIGS") && !isTableExist("JOBS") &&
+      !isTableExist("CONTEXTS")
 
   // Check if "some tables don't exist" is true
   private def isSomeTablesNotExist()(implicit session: Session): Boolean =
-    !isTableExist("JARS") || !isTableExist("CONFIGS") || !isTableExist("JOBS")
+    !isTableExist("JARS") || !isTableExist("CONFIGS") || !isTableExist("JOBS") ||
+      !isTableExist("CONTEXTS")
 
   override def saveJar(appName: String, uploadTime: DateTime, jarBytes: Array[Byte]) {
     // The order is important. Save the jar file first and then log it into database.
@@ -273,6 +284,38 @@ class JobSqlDAO(config: Config) extends JobDAO {
             end.map(convertDateSqlToJoda(_)),
             err.map(new Throwable(_)))
         }.toMap
+    }
+  }
+
+  override def getContexts(): Map[String, Config] = {
+    db withSession {
+      implicit sessions =>
+
+        contexts.list.map {
+          case (name, config) =>
+            (name, ConfigFactory.parseString(config))
+        }.toMap
+    }
+  }
+
+  override def getContextConfig(name: String): Option[Config] = {
+    db withSession {
+      implicit sessions =>
+
+        val query = contexts.filter(_.name === name).list.map {
+          case (_, config) =>
+            ConfigFactory.parseString(config)
+        }
+
+        query.headOption
+    }
+  }
+
+  override def saveContextConfig(name: String, config: Config) = {
+    db withSession {
+      implicit session =>
+
+        contexts += (name, config.root().render(ConfigRenderOptions.concise()))
     }
   }
 }
