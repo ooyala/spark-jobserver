@@ -28,7 +28,7 @@ object JobServerBuild extends Build {
     packageSummary := "Spark Job Server",
     packageDescription := "Spark as a Service: a RESTful job server for Apache Spark",
     name in Debian := assemblyName,
-    maintainer := "Ooyala Optimization <optimization-team@ooyala.com>",
+    maintainer := "Ooyala Optimization",
     linuxPackageMappings += packageMapping(assembly.value -> (installDir + "/" + assemblyName + ".jar")),
     linuxPackageMappings += packageMapping(file("job-server/config/log4j-server.properties") ->
         (installDir + "/log4j-server.properties"))
