@@ -24,6 +24,10 @@ object JobServerBuild extends Build {
 
   import Dependencies._
 
+  // Packages up files into a debian packages.
+  //   installDir - The destination where the files get unpacked when the package gets installed.
+  //   assemblyName - The name of the jar file.  This specifies to the packager where to find the jar file,
+  //       and the name of the jar file gets used as the debian package name as well.
   lazy val packageMappingsSettings = (installDir: String, assemblyName: String) => Seq(
     packageSummary := "Spark Job Server",
     packageDescription := "Spark as a Service: a RESTful job server for Apache Spark",
