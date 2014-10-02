@@ -5,6 +5,7 @@ import java.io.{FileOutputStream, BufferedOutputStream, File}
 import java.sql.Timestamp
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
+import scala.collection.mutable
 import scala.slick.jdbc.meta.MTable
 
 
@@ -15,6 +16,9 @@ class JobSqlDAO(config: Config) extends JobDAO {
     JdbcConfigParserFactory.parse(config).getOrElse(H2ConfigParser.defaultConfig)
   private val rootDir = jdbcConfig.rootDir
   private val rootDirFile = new File(rootDir)
+  // jobId to its JobInfo
+  private val jobsInfo = mutable.LinkedHashMap.empty[String, JobInfo]
+
   logger.info("rootDir is " + rootDirFile.getAbsolutePath)
   logger.info("jdbcConfig " + jdbcConfig.url)
 
@@ -93,6 +97,28 @@ class JobSqlDAO(config: Config) extends JobDAO {
         }
 
         // If the cases above are not true, it means all tables exit. No need to initialize the database.
+
+        // load job info from DB to memory
+        // Join the JARS and JOBS tables without unnecessary columns
+        val joinQuery = for {
+          jar <- jars
+          j <- jobs if j.jarId === jar.jarId
+        } yield
+          (j.jobId, j.contextName, jar.appName, jar.uploadTime, j.classPath, j.startTime, j.endTime, j.error)
+
+
+        // Transform the each row of the table into a list of JobInfo values
+        val jobinfoList: List[(String, JobInfo)] = joinQuery.list.map { case (id, context, app, upload, classpath, start, end, err) =>
+          id -> JobInfo(id,
+            context,
+            JarInfo(app, convertDateSqlToJoda(upload)),
+            classpath,
+            convertDateSqlToJoda(start),
+            end.map(convertDateSqlToJoda(_)),
+            err.map(new Throwable(_)))
+        }
+        // convert list to LinkedHashMap
+        jobinfoList.foreach{ case (id, jobInfo) => jobsInfo.put(id, jobInfo) }
     }
   }
 
@@ -261,31 +287,15 @@ class JobSqlDAO(config: Config) extends JobDAO {
           case _ => updateQuery.update(endOpt, errOpt)
         }
     }
+    // store a copy in memory
+    jobsInfo(jobInfo.jobId) = jobInfo
   }
 
-  override def getJobInfos: Map[String, JobInfo] = {
-    db withSession {
-      implicit sessions =>
+  override def getJobInfos: Map[String, JobInfo] = jobsInfo.toMap
 
-        // Join the JARS and JOBS tables without unnecessary columns
-        val joinQuery = for {
-          jar <- jars
-          j <- jobs if j.jarId === jar.jarId
-        } yield
-          (j.jobId, j.contextName, jar.appName, jar.uploadTime, j.classPath, j.startTime, j.endTime, j.error)
+  override def getJobInfosLimit(limit: Int): Map[String, JobInfo] = jobsInfo.takeRight(limit).toMap
 
-        // Transform the each row of the table into a map of JobInfo values
-        joinQuery.list.map { case (id, context, app, upload, classpath, start, end, err) =>
-          id -> JobInfo(id,
-            context,
-            JarInfo(app, convertDateSqlToJoda(upload)),
-            classpath,
-            convertDateSqlToJoda(start),
-            end.map(convertDateSqlToJoda(_)),
-            err.map(new Throwable(_)))
-        }.toMap
-    }
-  }
+  override def getJobInfo(jobId: String): Option[JobInfo] =  jobsInfo.get(jobId)
 
   override def getContexts(): Map[String, Config] = {
     db withSession {

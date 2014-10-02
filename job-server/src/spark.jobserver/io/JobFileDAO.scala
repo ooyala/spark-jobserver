@@ -12,7 +12,7 @@ class JobFileDAO(config: Config) extends JobDAO {
   // appName to its set of upload times. Decreasing times in the seq.
   private val apps = mutable.HashMap.empty[String, Seq[DateTime]]
   // jobId to its JobInfo
-  private val jobs = mutable.HashMap.empty[String, JobInfo]
+  private val jobs = mutable.LinkedHashMap.empty[String, JobInfo]
   // jobId to its Config
   private val configs = mutable.HashMap.empty[String, Config]
 
@@ -169,6 +169,11 @@ class JobFileDAO(config: Config) extends JobDAO {
     readError(in))
 
   override def getJobInfos: Map[String, JobInfo] = jobs.toMap
+
+  override def getJobInfosLimit(limit: Int): Map[String, JobInfo] = jobs.takeRight(limit).toMap
+
+  override def getJobInfo(jobId: String): Option[JobInfo] =  jobs.get(jobId)
+
 
   override def saveJobConfig(jobId: String, jobConfig: Config) {
     writeJobConfig(jobConfigsOutputStream, jobId, jobConfig)
