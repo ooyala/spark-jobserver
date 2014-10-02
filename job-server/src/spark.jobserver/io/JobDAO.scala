@@ -62,6 +62,22 @@ trait JobDAO {
   def getJobInfos: Map[String, JobInfo]
 
   /**
+   * Get jobInfo for the first limit job
+   *
+   * @param limit the number of jobInfo returned
+   * @return Map[String, JobInfo]
+   */
+  def getJobInfosLimit(limit: Int): Map[String, JobInfo]
+
+  /**
+   * Get jobInfo for a given job id
+   *
+   * @param jobId
+   * @return Option[JobInfo]
+   */
+  def getJobInfo(jobId: String): Option[JobInfo]
+
+  /**
    * Persist a job configuration along with provided jobId.
    *
    * @param jobId

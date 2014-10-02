@@ -43,6 +43,10 @@ class InMemoryDAO extends JobDAO {
 
   def getJobInfos(): Map[String, JobInfo] = jobInfos.toMap
 
+  override def getJobInfosLimit(limit: Int): Map[String, JobInfo] = jobInfos.takeRight(limit).toMap
+
+  override def getJobInfo(jobId: String): Option[JobInfo] =  jobInfos.get(jobId)
+
   val jobConfigs = mutable.HashMap.empty[String, Config]
 
   def saveJobConfig(jobId: String, jobConfig: Config) { jobConfigs(jobId) = jobConfig }

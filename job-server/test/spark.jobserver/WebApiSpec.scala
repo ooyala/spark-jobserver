@@ -63,7 +63,7 @@ with ScalatestRouteTest with HttpService {
       case GetJobStatuses(limitOpt) =>
         sender ! Seq(baseJobInfo,
                      baseJobInfo.copy(endTime = Some(dt.plusMinutes(5))))
-
+      case GetJobStatus(jobId) => sender ! baseJobInfo
       case ListJars => sender ! Map("demo1" -> dt, "demo2" -> dt.plusHours(1))
       // Ok these really belong to a JarManager but what the heck, type unsafety!!
       case StoreJar("badjar", _) => sender ! InvalidJar
@@ -140,6 +140,19 @@ with ScalatestRouteTest with HttpService {
               "duration" -> "300.0 secs",
               StatusKey -> "FINISHED")
         ))
+      }
+    }
+
+    it("should list the job status correctly for a given jobid") {
+      Get("/jobs/foo-1/status") ~> sealRoute(routes) ~> check {
+        status should be (OK)
+        responseAs[Map[String, String]] should be (
+          Map("jobId" -> "foo-1",
+            "startTime" -> "2013-05-29T00:00:00.000Z",
+            "classPath" -> "com.abc.meme",
+            "context"  -> "context",
+            "duration" -> "Job not done yet",
+            StatusKey -> "RUNNING"))
       }
     }
   }
