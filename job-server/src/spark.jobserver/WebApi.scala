@@ -225,6 +225,28 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
         }
       }
     } ~
+    // // GET /jobs/<jobId>/status --   returns the status for the given job id
+    (get & path(Segment / "status")) { jobId =>
+      val future = jobInfo ? GetJobStatus(jobId)
+      respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+        future.map {
+          case NoSuchJobId =>
+            notFound(ctx, "No such job ID " + jobId.toString)
+          case info: JobInfo =>
+            val jobReport = Map("jobId" -> info.jobId,
+              "startTime" -> info.startTime.toString(),
+              "classPath" -> info.classPath,
+              "context"   -> (if (info.contextName.isEmpty) "<<ad-hoc>>" else info.contextName),
+              "duration" -> getJobDurationString(info)) ++ (info match {
+              case JobInfo(_, _, _, _, _, None, _)       => Map(StatusKey -> "RUNNING")
+              case JobInfo(_, _, _, _, _, _, Some(ex))   => Map(StatusKey -> "ERROR",
+                ResultKey -> formatException(ex))
+              case JobInfo(_, _, _, _, _, Some(e), None) => Map(StatusKey -> "FINISHED")
+            })
+          ctx.complete(jobReport)
+        }
+      }
+    } ~
       // GET /jobs/<jobId>  returns the result in JSON form in a table
       //  JSON result always starts with: {"status": "ERROR" / "OK" / "RUNNING"}
       // If the job isn't finished yet, then {"status": "RUNNING" | "ERROR"} is returned.

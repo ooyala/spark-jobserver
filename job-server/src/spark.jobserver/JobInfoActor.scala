@@ -12,6 +12,7 @@ import spark.jobserver.io.JobDAO
 object JobInfoActor {
   // Requests
   case class GetJobStatuses(limit: Option[Int])
+  case class GetJobStatus(jobId: String)
   case class GetJobConfig(jobId: String)
   case class StoreJobConfig(jobId: String, jobConfig: Config)
 
@@ -31,16 +32,23 @@ class JobInfoActor(jobDao: JobDAO, contextSupervisor: ActorRef) extends Instrume
 
   override def wrappedReceive: Receive = {
     case GetJobStatuses(limit) =>
-      val infos = jobDao.getJobInfos.values.toSeq.sortBy(_.startTime.toString())
       if (limit.isDefined) {
-        sender ! infos.takeRight(limit.get)
+        sender !  jobDao.getJobInfosLimit(limit.get).values.toSeq.sortBy(_.startTime.toString())
       } else {
-        sender ! infos
+        sender ! jobDao.getJobInfos.values.toSeq.sortBy(_.startTime.toString())
+      }
+
+    case GetJobStatus(jobId) =>
+      val jobInfoOpt = jobDao.getJobInfo(jobId)
+      if (!jobInfoOpt.isDefined) {
+        sender ! NoSuchJobId
+      } else {
+        sender ! jobInfoOpt.get
       }
 
     case GetJobResult(jobId) =>
       breakable {
-        val jobInfoOpt = jobDao.getJobInfos.get(jobId)
+        val jobInfoOpt = jobDao.getJobInfo(jobId)
         if (!jobInfoOpt.isDefined) {
           sender ! NoSuchJobId
           break
