@@ -295,7 +295,7 @@ class JobSqlDAO(config: Config) extends JobDAO {
 
   override def getJobInfosLimit(limit: Int): Map[String, JobInfo] = jobsInfo.takeRight(limit).toMap
 
-  override def getJobInfo(jobId: String): Option[JobInfo] =  jobsInfo.get(jobId)
+  override def getJobInfo(jobId: String): Option[JobInfo] = jobsInfo.get(jobId)
 
   override def getContexts(): Map[String, Config] = {
     db withSession {
