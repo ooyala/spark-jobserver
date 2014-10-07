@@ -233,7 +233,7 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
           case NoSuchJobId =>
             notFound(ctx, "No such job ID " + jobId.toString)
           case info: JobInfo =>
-            val jobReport =  Map("jobId" -> info.jobId,
+            val jobReport = Map("jobId" -> info.jobId,
               "startTime" -> info.startTime.toString(),
               "classPath" -> info.classPath,
               "context"   -> (if (info.contextName.isEmpty) "<<ad-hoc>>" else info.contextName),
