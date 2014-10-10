@@ -8,6 +8,8 @@ import com.typesafe.sbt.SbtScalariform._
 import org.scalastyle.sbt.ScalastylePlugin
 import scalariform.formatter.preferences._
 import bintray.Plugin.bintrayPublishSettings
+import com.typesafe.sbt.SbtNativePackager._
+import NativePackagerKeys._
 
 // There are advantages to using real Scala build files with SBT:
 //  - Multi-JVM testing won't work without it, for now
@@ -22,6 +24,20 @@ object JobServerBuild extends Build {
 
   import Dependencies._
 
+  // Packages up files into a debian packages.
+  //   installDir - The destination where the files get unpacked when the package gets installed.
+  //   assemblyName - The name of the jar file.  This specifies to the packager where to find the jar file,
+  //       and the name of the jar file gets used as the debian package name as well.
+  lazy val packageMappingsSettings = (installDir: String, assemblyName: String) => Seq(
+    packageSummary := "Spark Job Server",
+    packageDescription := "Spark as a Service: a RESTful job server for Apache Spark",
+    name in Debian := assemblyName,
+    maintainer := "Ooyala Optimization",
+    linuxPackageMappings += packageMapping(assembly.value -> (installDir + "/" + assemblyName + ".jar")),
+    linuxPackageMappings += packageMapping(file("job-server/config/log4j-server.properties") ->
+        (installDir + "/log4j-server.properties"))
+  )
+
   lazy val akkaApp = Project(id = "akka-app", base = file("akka-app"),
     settings = commonSettings210 ++ Seq(
       description := "Common Akka application stack: metrics, tracing, logging, and more.",
@@ -30,27 +46,26 @@ object JobServerBuild extends Build {
   )
 
   lazy val jobServer = Project(id = "job-server", base = file("job-server"),
-    settings = commonSettings210 ++ Assembly.settings ++ Revolver.settings ++ Seq(
-      description  := "Spark as a Service: a RESTful job server for Apache Spark",
-      libraryDependencies ++= sparkDeps ++ slickDeps ++ coreTestDeps,
+    settings = packagerSettings ++ commonSettings210 ++ Assembly.settings ++
+      packageMappingsSettings("/home/spark/job-server", "spark-job-server") ++ Revolver.settings ++ Seq(
+        description := "Spark as a Service: a RESTful job server for Apache Spark",
+        libraryDependencies ++= sparkDeps ++ slickDeps ++ coreTestDeps,
 
-      // Automatically package the test jar when we run tests here
-      // And always do a clean before package (package depends on clean) to clear out multiple versions
-      test in Test <<= (test in Test).dependsOn(packageBin in Compile in jobServerTestJar)
-                                     .dependsOn(clean in Compile in jobServerTestJar),
+        // Automatically package the test jar when we run tests here
+        // And always do a clean before package (package depends on clean) to clear out multiple versions
+        test in Test <<= (test in Test).dependsOn(packageBin in Compile in jobServerTestJar)
+                                       .dependsOn(clean in Compile in jobServerTestJar),
 
-      console in Compile <<= Defaults.consoleTask(fullClasspath in Compile, console in Compile),
-
-      // Adds the path of extra jars to the front of the classpath
-      fullClasspath in Compile <<= (fullClasspath in Compile).map { classpath =>
-        extraJarPaths ++ classpath
-      },
-      javaOptions in Revolver.reStart += jobServerLogging,
-      // Give job server a bit more PermGen since it does classloading
-      javaOptions in Revolver.reStart += "-XX:MaxPermSize=256m",
-      javaOptions in Revolver.reStart += "-Djava.security.krb5.realm= -Djava.security.krb5.kdc=",
-      // This lets us add Spark back to the classpath without assembly barfing
-      fullClasspath in Revolver.reStart := (fullClasspath in Compile).value
+        // Adds the path of extra jars to the front of the classpath
+        fullClasspath in Compile <<= (fullClasspath in Compile).map { classpath =>
+          extraJarPaths ++ classpath
+        },
+        javaOptions in Revolver.reStart += jobServerLogging,
+        // Give job server a bit more PermGen since it does classloading
+        javaOptions in Revolver.reStart += "-XX:MaxPermSize=256m",
+        javaOptions in Revolver.reStart += "-Djava.security.krb5.realm= -Djava.security.krb5.kdc=",
+        // This lets us add Spark back to the classpath without assembly barfing
+        fullClasspath in Revolver.reStart := (fullClasspath in Compile).value
       )
   ) dependsOn(akkaApp, jobServerApi)
 
