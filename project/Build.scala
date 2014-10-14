@@ -47,7 +47,7 @@ object JobServerBuild extends Build {
 
   lazy val jobServer = Project(id = "job-server", base = file("job-server"),
     settings = packagerSettings ++ commonSettings210 ++ Assembly.settings ++
-      packageMappingsSettings("/home/spark/job-server", "spark-job-server") ++ Revolver.settings ++ Seq(
+      packageMappingsSettings("/data/spark/job-server", "spark-job-server") ++ Revolver.settings ++ Seq(
         description := "Spark as a Service: a RESTful job server for Apache Spark",
         libraryDependencies ++= sparkDeps ++ slickDeps ++ coreTestDeps,
 
