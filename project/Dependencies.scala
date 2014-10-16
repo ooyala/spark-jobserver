@@ -35,7 +35,8 @@ object Dependencies {
   lazy val slickDeps = Seq(
     "com.typesafe.slick" %% "slick" % "2.0.2-RC1",
     "com.h2database" % "h2" % "1.3.170",
-    "mysql" % "mysql-connector-java" % "5.1.31"
+    "mysql" % "mysql-connector-java" % "5.1.31",
+    "org.mariadb.jdbc" % "mariadb-java-client" % "1.1.7"
   )
 
   lazy val logbackDeps = Seq(
