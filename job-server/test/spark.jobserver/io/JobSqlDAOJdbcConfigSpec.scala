@@ -8,6 +8,39 @@ import spark.jobserver.TestJarFinder
 
 class JobSqlDAOJdbcConfigSpec extends TestJarFinder with FunSpec with ShouldMatchers {
 
+  describe("parse MariaDB config") {
+    val configStr =
+      """
+      spark.jobserver.sqldao {
+        rootdir = /tmp/spark-job-server-test/sqldao/data
+
+        mariadb {
+          url = "jdbc:mariadb://localhost:3306/test"
+          user = test
+          password = test
+        }
+      }
+      """
+
+    it("should parse a valid MariaDB config") {
+      val config = ConfigFactory.parseString(configStr)
+      val mysqlConfig = MariaDbConfigParser.parse(config)
+
+      mysqlConfig.isDefined should equal(true)
+      mysqlConfig.get.user should equal("test")
+      mysqlConfig.get.password should equal("test")
+    }
+
+    it("should fail to parse a MariaDB config") {
+      // An invalid MySQL config that has an invalid JDBC connection url prefix
+      val invalidConfigStr = configStr.replace("jdbc:mariadb:", "jdbc:tiffanydb:")
+      val config = ConfigFactory.parseString(invalidConfigStr)
+      val mysqlConfig = MariaDbConfigParser.parse(config)
+
+      mysqlConfig.isDefined should equal(false)
+    }
+  }
+
   describe("parse MySQL config") {
     val configStr =
       """
