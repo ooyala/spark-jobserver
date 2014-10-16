@@ -179,14 +179,15 @@ object JdbcConfigParserFactory {
    * Parses a JDBC configuration
    *
    * @param config a configuration to parse
-   * @return a MySQL JDBC configuration if the given config has an valid configuration for MySQL;
+   * @return a MariaDB JDBC configuration if provided a valid configuration for MariaDB;
+   *         otherwise, a MySQL JDBC configuration if provided a valid configuration for MySQL;
    *         otherwise, an H2 JDBC configuration if the given config has an valid configuration
    *         for H2;
    *         otherwise, None.
    */
   def parse(config: Config): Option[JdbcConfig] = {
     val jdbcConfig = MariaDbConfigParser.parse(config) orElse
-                     MySqlConfigParser.parse(config) orElse H2ConfigParser.parse(config)
+                       MySqlConfigParser.parse(config) orElse H2ConfigParser.parse(config)
 
     jdbcConfig
   }

@@ -24,20 +24,20 @@ class JobSqlDAOJdbcConfigSpec extends TestJarFinder with FunSpec with ShouldMatc
 
     it("should parse a valid MariaDB config") {
       val config = ConfigFactory.parseString(configStr)
-      val mysqlConfig = MariaDbConfigParser.parse(config)
+      val mariadbConfig = MariaDbConfigParser.parse(config)
 
-      mysqlConfig.isDefined should equal(true)
-      mysqlConfig.get.user should equal("test")
-      mysqlConfig.get.password should equal("test")
+      mariadbConfig.isDefined should equal(true)
+      mariadbConfig.get.user should equal("test")
+      mariadbConfig.get.password should equal("test")
     }
 
     it("should fail to parse a MariaDB config") {
-      // An invalid MySQL config that has an invalid JDBC connection url prefix
+      // An invalid MariaDB config that has an invalid JDBC connection url prefix
       val invalidConfigStr = configStr.replace("jdbc:mariadb:", "jdbc:tiffanydb:")
       val config = ConfigFactory.parseString(invalidConfigStr)
-      val mysqlConfig = MariaDbConfigParser.parse(config)
+      val mariadbConfig = MariaDbConfigParser.parse(config)
 
-      mysqlConfig.isDefined should equal(false)
+      mariadbConfig.isDefined should equal(false)
     }
   }
 
