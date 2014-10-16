@@ -187,7 +187,7 @@ object JdbcConfigParserFactory {
    */
   def parse(config: Config): Option[JdbcConfig] = {
     val jdbcConfig = MariaDbConfigParser.parse(config) orElse
-                       MySqlConfigParser.parse(config) orElse H2ConfigParser.parse(config)
+      MySqlConfigParser.parse(config) orElse H2ConfigParser.parse(config)
 
     jdbcConfig
   }
