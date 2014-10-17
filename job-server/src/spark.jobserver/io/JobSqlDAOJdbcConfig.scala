@@ -88,6 +88,31 @@ trait JdbcConfigParser {
 }
 
 /**
+ * MariaDB JDBC configuration parser
+ */
+object MariaDbConfigParser extends JdbcConfigParser {
+  private val logger = LoggerFactory.getLogger(getClass)
+  // MariaDB JDBC driver string
+  override protected val jdbcDriver = "org.mariadb.jdbc.Driver"
+  // MariaDB JDBC driver profile
+  override protected val jdbcProfile = MySQLDriver
+
+  override def parse(config: Config): Option[JdbcConfig] = {
+    parse(config, "mariadb")
+  }
+
+  override protected def validate(jdbcConfig: JdbcConfig): Boolean = {
+    // Checks if the JDBC connection url has the MariaDB prefix
+    val prefixMatch = jdbcConfig.url.startsWith("jdbc:mariadb:")
+    if (!prefixMatch) {
+      logger.info("Error: invalid MariaDB jdbc url")
+    }
+
+    prefixMatch
+  }
+}
+
+/**
  * MySQL JDBC configuration parser
  */
 object MySqlConfigParser extends JdbcConfigParser {
@@ -154,13 +179,15 @@ object JdbcConfigParserFactory {
    * Parses a JDBC configuration
    *
    * @param config a configuration to parse
-   * @return a MySQL JDBC configuration if the given config has an valid configuration for MySQL;
+   * @return a MariaDB JDBC configuration if provided a valid configuration for MariaDB;
+   *         otherwise, a MySQL JDBC configuration if provided a valid configuration for MySQL;
    *         otherwise, an H2 JDBC configuration if the given config has an valid configuration
    *         for H2;
    *         otherwise, None.
    */
   def parse(config: Config): Option[JdbcConfig] = {
-    val jdbcConfig = MySqlConfigParser.parse(config) orElse H2ConfigParser.parse(config)
+    val jdbcConfig = MariaDbConfigParser.parse(config) orElse
+      MySqlConfigParser.parse(config) orElse H2ConfigParser.parse(config)
 
     jdbcConfig
   }
