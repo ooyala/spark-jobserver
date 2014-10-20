@@ -25,7 +25,7 @@ object SparkWebUiActorSpec {
   val sparkWebPort = 8098
   val config = ConfigFactory.parseString(s"""
     spark {
-      master = "spark://localhost:7077"
+      master = "spark://localhost:7077,localhost:7077"
       webUrl = $sparkWebUrl
       webUrlPort = $sparkWebPort
       temp-contexts {
@@ -125,9 +125,11 @@ class SparkWebUiActorSpec extends TestKit(SparkWebUiActorSpec.system) with Impli
   describe("SparkWebUiActor") {
     it("should get worker info") {
       val future = actor ? GetWorkerStatus()
-      val result = Await.result(future, ShortTimeout.duration).asInstanceOf[SparkWorkersInfo]
-      result.alive should equal (1)
-      result.dead should equal (1)
+      val result = Await.result(future, ShortTimeout.duration).asInstanceOf[Array[SparkWorkersInfo]]
+      result(0).alive should equal (1)
+      result(0).dead should equal (1)
+      result(1).alive should equal (1)
+      result(1).dead should equal (1)
     }
   }
 }

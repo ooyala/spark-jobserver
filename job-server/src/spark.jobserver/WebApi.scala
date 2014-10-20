@@ -150,19 +150,23 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
    */
   def sparkHealthzRoutes: Route = pathPrefix("sparkHealthz") {
     get { ctx =>
-      logger.info("Receiving sparkHealthz check request")
+      logger.debug("Receiving sparkHealthz check request")
       val future = sparkWebUiActor ? GetWorkerStatus()
       future.map {
-        case SparkWorkersInfo(dead, alive) =>
-          if ( dead > 0 ) {
-            logger.warn( "Spark dead worker non-zero: " + dead)
+        case Array(arr@_*) =>
+          for ( info <- arr ) {
+            val sparkWorkersInfo = info.asInstanceOf[SparkWorkersInfo]
+            if ( sparkWorkersInfo.dead > 0 ) {
+              logger.warn( "Spark dead worker non-zero: " + sparkWorkersInfo.dead)
+            }
+            if (sparkWorkersInfo.alive >  sparkAliveWorkerThreshold ) {
+              ctx.complete("OK")
+            } else {
+              logger.error( "Spark alive worker below threshold: " + sparkWorkersInfo.alive)
+            }
           }
-          if ( alive >  sparkAliveWorkerThreshold ) {
-            ctx.complete("OK")
-          } else {
-            logger.error( "Spark alive worker below threshold: " + alive)
-            ctx.complete("ERROR")
-          }
+
+          ctx.complete("ERROR")
 
         case SparkWorkersErrorInfo =>
           ctx.complete("ERROR")

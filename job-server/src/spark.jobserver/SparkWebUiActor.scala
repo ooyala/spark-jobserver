@@ -5,6 +5,7 @@ import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
 import ooyala.common.akka.InstrumentedActor
+import scala.collection.mutable.ArrayBuffer
 import scala.util.{Success, Failure}
 import scala.concurrent.Future
 import spark.jobserver.SparkWebUiActor.{SparkWorkersErrorInfo, SparkWorkersInfo, GetWorkerStatus}
@@ -37,14 +38,14 @@ class SparkWebUiActor extends InstrumentedActor {
 
   val config = context.system.settings.config
 
-  val sparkWebHostUrl = getSparkHostName()
+  val sparkWebHostUrls: Array[String] = getSparkHostName()
   val sparkWebHostPort = config.getInt("spark.webUrlPort")
 
-  val pipeline: Future[SendReceive] =
+  val pipelines = sparkWebHostUrls.map(url =>
     for (
-      Http.HostConnectorInfo(connector, _) <-
-        IO(Http) ? Http.HostConnectorSetup(sparkWebHostUrl, port = sparkWebHostPort)
-    ) yield sendReceive(connector)
+      Http.HostConnectorInfo(connector, _) <- IO(Http) ? Http.HostConnectorSetup(url, port = sparkWebHostPort) )
+    yield sendReceive(connector)
+  )
 
   override def postStop() {
     logger.info("Shutting down actor system for SparkWebUiActor")
@@ -56,32 +57,46 @@ class SparkWebUiActor extends InstrumentedActor {
       logger.info("Get the request for spark web UI")
 
       val theSender = sender
-      val responseFuture: Future[HttpResponse] = pipeline.flatMap(_(request))
-      responseFuture onComplete {
-        case Success(httpResponse) =>
-          val content = httpResponse.entity.asString;
 
-          val aliveWorkerNum = "<td>ALIVE</td>".r.findAllIn(content).length
-          val deadWorkerNum = "<td>DEAD</td>".r.findAllIn(content).length
+      var sparkWorkersInfoArray  = new ArrayBuffer[SparkWorkersInfo]();
+      pipelines.map {pipeline =>
+        val responseFuture: Future[HttpResponse] = pipeline.flatMap(_(request))
+        responseFuture onComplete {
+          case Success(httpResponse) =>
+            val content = httpResponse.entity.asString;
 
-          theSender ! SparkWorkersInfo(aliveWorkerNum, deadWorkerNum)
-        case Failure(error) =>
-          val msg = s"Failed to retrieve Spark web UI $sparkWebHostUrl:$sparkWebHostPort"
-          logger.error( msg )
-          theSender ! SparkWorkersErrorInfo(msg)
+            val aliveWorkerNum = "<td>ALIVE</td>".r.findAllIn(content).length
+            val deadWorkerNum = "<td>DEAD</td>".r.findAllIn(content).length
+
+            Console.println("hit")
+            sparkWorkersInfoArray += SparkWorkersInfo(aliveWorkerNum, deadWorkerNum)
+          case Failure(error) =>
+            val msg = s"Failed to retrieve Spark web UI $pipeline:$sparkWebHostPort"
+            Console.println(msg)
+            logger.error(msg)
+            SparkWorkersInfo(0, 0)
+
+        }
       }
+      Console.println(sparkWorkersInfoArray.size)
+      theSender ! sparkWorkersInfoArray.toArray;
   }
 
-  def getSparkHostName(): String = {
+  def getSparkHostName(): Array[String] = {
     val master = config.getString("spark.master")
     // Regular expression used for local[N] and local[*] master formats
     val LOCAL_N_REGEX = """local\[([0-9\*]+)\]""".r
     // Regular expression for connecting to Spark deploy clusters
-    val SPARK_REGEX = """spark://(.*):.*""".r
+    val SPARK_REGEX = """spark://(.*)""".r
 
     master match {
-      case "localhost" | "local" | LOCAL_N_REGEX(_) => "localhost"
-      case SPARK_REGEX(sparkUrl) => sparkUrl
+      case "localhost" | "local" | LOCAL_N_REGEX(_) => Array("localhost")
+      case SPARK_REGEX(sparkUrl) =>
+        val masterUrls = sparkUrl.split(",").map(s => {
+          val splits = s.split(":")
+          splits(0)
+        })
+        masterUrls
       case _ => throw new RuntimeException("Could not parse Master URL: '" + master + "'")
     }
   }
