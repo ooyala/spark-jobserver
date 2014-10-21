@@ -97,7 +97,15 @@ class JobSqlDAO(config: Config) extends JobDAO {
         }
 
         // If the cases above are not true, it means all tables exit. No need to initialize the database.
+    }
 
+    // read job info from DB and convert list to LinkedHashMap
+    getJobInfosFromDb()
+  }
+
+  private def getJobInfosFromDb() = {
+    db withSession {
+      implicit session =>
         // load job info from DB to memory
         // Join the JARS and JOBS tables without unnecessary columns
         val joinQuery = for {
@@ -117,8 +125,7 @@ class JobSqlDAO(config: Config) extends JobDAO {
             end.map(convertDateSqlToJoda(_)),
             err.map(new Throwable(_)))
         }
-        // convert list to LinkedHashMap
-        jobinfoList.foreach{ case (id, jobInfo) => jobsInfo.put(id, jobInfo) }
+        jobinfoList.foreach{case (id, jobInfo) => jobsInfo.put(id, jobInfo)}
     }
   }
 
@@ -291,11 +298,22 @@ class JobSqlDAO(config: Config) extends JobDAO {
     jobsInfo(jobInfo.jobId) = jobInfo
   }
 
-  override def getJobInfos: Map[String, JobInfo] = jobsInfo.toMap
+  override def getJobInfos: Map[String, JobInfo] = {
+    getJobInfosFromDb()
+    jobsInfo.toMap
+  }
 
-  override def getJobInfosLimit(limit: Int): Map[String, JobInfo] = jobsInfo.takeRight(limit).toMap
+  override def getJobInfosLimit(limit: Int): Map[String, JobInfo] = {
+    getJobInfosFromDb()
+    jobsInfo.takeRight(limit).toMap
+  }
 
-  override def getJobInfo(jobId: String): Option[JobInfo] = jobsInfo.get(jobId)
+  override def getJobInfo(jobId: String): Option[JobInfo] = {
+    jobsInfo.get(jobId) orElse {
+      getJobInfosFromDb()
+      jobsInfo.get(jobId)
+    }
+  }
 
   override def getContexts(): Map[String, Config] = {
     db withSession {
