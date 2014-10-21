@@ -100,10 +100,10 @@ class JobSqlDAO(config: Config) extends JobDAO {
     }
 
     // read job info from DB and convert list to LinkedHashMap
-    getJobsInfoFromDb().foreach{ case (id, jobInfo) => jobsInfo.put(id, jobInfo) }
+    getJobInfosFromDb()
   }
 
-  private def getJobsInfoFromDb(): List[(String, JobInfo)] = {
+  private def getJobInfosFromDb() = {
     db withSession {
       implicit session =>
         // load job info from DB to memory
@@ -125,7 +125,7 @@ class JobSqlDAO(config: Config) extends JobDAO {
             end.map(convertDateSqlToJoda(_)),
             err.map(new Throwable(_)))
         }
-        jobinfoList
+        jobinfoList.foreach{case (id, jobInfo) => jobsInfo.put(id, jobInfo)}
     }
   }
 
@@ -299,22 +299,19 @@ class JobSqlDAO(config: Config) extends JobDAO {
   }
 
   override def getJobInfos: Map[String, JobInfo] = {
-    getJobsInfoFromDb().foreach{ case (id, jobInfo) => jobsInfo.put(id, jobInfo) }
+    getJobInfosFromDb()
     jobsInfo.toMap
   }
 
   override def getJobInfosLimit(limit: Int): Map[String, JobInfo] = {
-    getJobsInfoFromDb().foreach{ case (id, jobInfo) => jobsInfo.put(id, jobInfo) }
+    getJobInfosFromDb()
     jobsInfo.takeRight(limit).toMap
   }
 
   override def getJobInfo(jobId: String): Option[JobInfo] = {
-    val result = jobsInfo.get(jobId)
-    result match {
-      case Some(x) => result
-      case None =>
-        getJobsInfoFromDb().foreach{ case (id, jobInfo) => jobsInfo.put(id, jobInfo) }
-        jobsInfo.get(jobId)
+    jobsInfo.get(jobId) orElse {
+      getJobInfosFromDb()
+      jobsInfo.get(jobId)
     }
   }
 
