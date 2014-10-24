@@ -1,20 +1,47 @@
 package ooyala.common.akka.metrics
 
 import com.codahale.metrics._
+import java.util.concurrent.TimeUnit
+import org.coursera.metrics.datadog.DatadogReporter
+import org.coursera.metrics.datadog.DatadogReporter.Expansion
+import org.coursera.metrics.datadog.transport.HttpTransport
+import org.slf4j.LoggerFactory
 import scala.util.Try
 
 object MetricsWrapper {
+  private val logger = LoggerFactory.getLogger(getClass)
   val registry: MetricRegistry = new MetricRegistry
-  val reporter: JmxReporter = JmxReporter.forRegistry(registry).build()
-  // TODO: Use the cleaner way if possible
-  val shutdownHook: Thread = new Thread {
-    override def run {
-      reporter.stop
+  private var shutdownHook: Thread = null
+
+  def startDatadogReporter(config: DatadogConfig) = {
+    val transportBuilder = new HttpTransport.Builder
+    if (config.apiKey.isDefined) {
+      transportBuilder.withApiKey(config.apiKey.get)
     }
+    val httpTransport = transportBuilder.build
+
+    val datadogReporterBuilder = DatadogReporter.forRegistry(registry)
+    if (config.hostName.isDefined) {
+      datadogReporterBuilder.withHost(config.hostName.get)
+    }
+    val datadogReporter = datadogReporterBuilder
+      .withTransport(httpTransport)
+      .withExpansions(Expansion.ALL)
+      .build
+
+    // TODO: Use the cleaner way if possible
+    shutdownHook = new Thread {
+      override def run {
+        datadogReporter.stop
+      }
+    }
+
+    // Start the reporter and set up shutdown hooks
+    datadogReporter.start(config.durationInSeconds, TimeUnit.SECONDS)
+    Runtime.getRuntime.addShutdownHook(shutdownHook)
+
+    logger.info("Datadog reporting started.")
   }
-  // Start the reporter and set up shutdown hooks
-  reporter.start()
-  Runtime.getRuntime.addShutdownHook(shutdownHook)
 
   def newGauge[T](klass: Class[_], name: String, metric: => T): Gauge[T] = {
     val metricName = MetricRegistry.name(klass, name)
@@ -47,7 +74,9 @@ object MetricsWrapper {
   }
 
   def shutdown = {
-    reporter.stop
-    Runtime.getRuntime.removeShutdownHook(shutdownHook)
+    if (shutdownHook != null) {
+      Runtime.getRuntime.removeShutdownHook(shutdownHook)
+      shutdownHook.run
+    }
   }
 }
