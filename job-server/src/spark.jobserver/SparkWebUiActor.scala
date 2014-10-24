@@ -5,13 +5,13 @@ import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
 import ooyala.common.akka.InstrumentedActor
-import scala.collection.mutable.ArrayBuffer
 import scala.util.{Success, Failure}
 import scala.concurrent.Future
 import spark.jobserver.SparkWebUiActor.{SparkWorkersErrorInfo, SparkWorkersInfo, GetWorkerStatus}
 import spray.can.Http
 import spray.client.pipelining.{Get, sendReceive, SendReceive}
-import spray.http.HttpResponse
+import spray.http.{HttpResponse, HttpRequest}
+
 
 object SparkWebUiActor {
   // Requests
@@ -33,15 +33,20 @@ class SparkWebUiActor extends InstrumentedActor {
 
   implicit val actorSystem: ActorSystem = context.system
 
-  // Used in the asks (?) below to request info from contextSupervisor and resultActor
-  implicit val shortTimeout = Timeout(3 seconds)
-
   val config = context.system.settings.config
 
   val sparkWebHostUrls: Array[String] = getSparkHostName()
   val sparkWebHostPort = config.getInt("spark.webUrlPort")
 
-  val pipelines = sparkWebHostUrls.map(url =>
+  // implicit timeout value for ? of IO(Http)
+  implicit val shortTimeout = Timeout(3 seconds)
+  // get a pipeline every time we need it since pipeline could time out or die.
+  // The connector will be re-used if it exists so the cost is low:
+  // from http://spray.io/documentation/1.1-M8/spray-can/http-client/host-level/
+  // If there is no connector actor running for the given combination of hostname,
+  // port and settings spray-can will start a new one,
+  // otherwise the existing one is going to be re-used.
+  def pipelines: Array[Future[SendReceive]] = sparkWebHostUrls.map(url =>
     for (
       Http.HostConnectorInfo(connector, _) <- IO(Http) ? Http.HostConnectorSetup(url, port = sparkWebHostPort) )
     yield sendReceive(connector)
@@ -54,32 +59,37 @@ class SparkWebUiActor extends InstrumentedActor {
   override def wrappedReceive: Receive = {
     case GetWorkerStatus() =>
       val request = Get("/")
-      logger.info("Get the request for spark web UI")
 
       val theSender = sender
 
-      var sparkWorkersInfoArray  = new ArrayBuffer[SparkWorkersInfo]();
       pipelines.map {pipeline =>
         val responseFuture: Future[HttpResponse] = pipeline.flatMap(_(request))
         responseFuture onComplete {
           case Success(httpResponse) =>
-            val content = httpResponse.entity.asString;
+            val content = httpResponse.entity.asString.replace('\n', ' ');
 
-            val aliveWorkerNum = "<td>ALIVE</td>".r.findAllIn(content).length
-            val deadWorkerNum = "<td>DEAD</td>".r.findAllIn(content).length
+            // regex to detect the #running tasks
+            val runningTaskRegex = """.*<li><strong>Applications:</strong>\s*(\d+)\s+Running.*""".r
+            content match {
+              case runningTaskRegex(runningTaskStr) =>
+                if ( runningTaskStr != null && runningTaskStr.length > 0 && runningTaskStr.toInt > 0 ) {
+                  // we believe it is a active master if it has active running tasks
+                  // we only check the workers on active master
+                  val aliveWorkerNum = "<td>ALIVE</td>".r.findAllIn(content).length
+                  val deadWorkerNum = "<td>DEAD</td>".r.findAllIn(content).length
 
-            Console.println("hit")
-            sparkWorkersInfoArray += SparkWorkersInfo(aliveWorkerNum, deadWorkerNum)
+                  theSender ! SparkWorkersInfo(aliveWorkerNum, deadWorkerNum)
+                }
+              case _ => throw new RuntimeException("Could not parse HTML response: '" + content + "'")
+            }
+
           case Failure(error) =>
-            val msg = s"Failed to retrieve Spark web UI $pipeline:$sparkWebHostPort"
-            Console.println(msg)
+            val msg = "Failed to retrieve Spark web UI: " +  error.getMessage
             logger.error(msg)
-            SparkWorkersInfo(0, 0)
 
         }
       }
-      Console.println(sparkWorkersInfoArray.size)
-      theSender ! sparkWorkersInfoArray.toArray;
+
   }
 
   def getSparkHostName(): Array[String] = {
