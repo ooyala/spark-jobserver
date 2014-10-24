@@ -1,10 +1,10 @@
 package ooyala.common.akka.metrics
 
-import com.typesafe.config.{ConfigException, Config}
+import com.typesafe.config.Config
 import java.net.InetAddress
 import org.ini4j.ConfigParser
 import org.slf4j.LoggerFactory
-import scala.util.{Try, Success, Failure}
+import scala.util.{Try, Success}
 
 /**
  * Datadog configuration
@@ -36,6 +36,14 @@ object DatadogConfigParser {
    * If any of last two is missing in the configuration section, parses the missing one from the
    * datadog agent configuration file. If the host name is still not set, sets it to the local host
    * name.
+   *
+   *  Example config setting in spark.jobserver.metrics.datadog
+   *  spark.jobserver.metrics.datadog {
+   *    hostname = example
+   *    apikey = example
+   *    duration = 100
+   *    agentconf = /example/example.conf
+   *  }
    *
    * @param config a configuraiton that contains a Datadog configuration section
    * @return a configuration for Datadog reporting
