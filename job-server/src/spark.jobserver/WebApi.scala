@@ -154,10 +154,10 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
       val future = sparkWebUiActor ? GetWorkerStatus()
       future.map {
         case SparkWorkersInfo(alive, dead) =>
-          if ( dead > 0 ) {
+          if (dead > 0) {
             logger.warn( "Spark dead worker non-zero: " + dead)
           }
-          if ( alive > sparkAliveWorkerThreshold ) {
+          if (alive > sparkAliveWorkerThreshold) {
             ctx.complete("OK")
           } else {
             logger.error( "Spark alive worker below threshold: " + alive)

@@ -12,7 +12,6 @@ import spray.can.Http
 import spray.client.pipelining.{Get, sendReceive, SendReceive}
 import spray.http.{HttpResponse, HttpRequest}
 
-
 object SparkWebUiActor {
   // Requests
   case class GetWorkerStatus()
@@ -48,8 +47,8 @@ class SparkWebUiActor extends InstrumentedActor {
   // otherwise the existing one is going to be re-used.
   def pipelines: Array[Future[SendReceive]] = sparkWebHostUrls.map(url =>
     for (
-      Http.HostConnectorInfo(connector, _) <- IO(Http) ? Http.HostConnectorSetup(url, port = sparkWebHostPort) )
-    yield sendReceive(connector)
+      Http.HostConnectorInfo(connector, _) <- IO(Http) ? Http.HostConnectorSetup(url, port = sparkWebHostPort)
+    ) yield sendReceive(connector)
   )
 
   override def postStop() {
@@ -72,7 +71,7 @@ class SparkWebUiActor extends InstrumentedActor {
             val runningTaskRegex = """.*<li><strong>Applications:</strong>\s*(\d+)\s+Running.*""".r
             content match {
               case runningTaskRegex(runningTaskStr) =>
-                if ( runningTaskStr != null && runningTaskStr.length > 0 && runningTaskStr.toInt > 0 ) {
+                if (runningTaskStr != null && runningTaskStr.length > 0 && runningTaskStr.toInt > 0) {
                   // we believe it is a active master if it has active running tasks
                   // we only check the workers on active master
                   val aliveWorkerNum = "<td>ALIVE</td>".r.findAllIn(content).length
@@ -82,14 +81,11 @@ class SparkWebUiActor extends InstrumentedActor {
                 }
               case _ => throw new RuntimeException("Could not parse HTML response: '" + content + "'")
             }
-
           case Failure(error) =>
             val msg = "Failed to retrieve Spark web UI: " +  error.getMessage
             logger.error(msg)
-
         }
       }
-
   }
 
   def getSparkHostName(): Array[String] = {
