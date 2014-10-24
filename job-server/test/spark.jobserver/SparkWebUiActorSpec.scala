@@ -25,8 +25,7 @@ object SparkWebUiActorSpec {
   val sparkWebPort = 8098
   val config = ConfigFactory.parseString(s"""
     spark {
-      master = "spark://localhost:7077"
-      webUrl = $sparkWebUrl
+      master = "spark://badhost:7077,localhost:7077"
       webUrlPort = $sparkWebPort
       temp-contexts {
         num-cpu-cores = 4           # Number of cores to allocate.  Required.
@@ -52,10 +51,6 @@ object SparkWebUiActorSpec {
   val system = ActorSystem("test", config)
 }
 
-/**
- * Created by senqiang on 8/22/14.
- */
-
 // simple http service
 class SimpleHttpServer extends Actor with ActorLogging {
   implicit val timeout: Timeout = 1.second // for the actor 'asks'
@@ -66,8 +61,14 @@ class SimpleHttpServer extends Actor with ActorLogging {
     case _: Http.Connected => sender ! Http.Register(self)
     case HttpRequest(GET, Uri.Path("/"), _, _, _) =>  {
       sender ! HttpResponse(entity =
-        """<td>ALIVE</td>
-          |<td>DEAD</td>
+        """blah blah
+          |<li><strong>Applications:</strong>
+          |  3 Running,
+          |  67 Completed </li>
+          |  <td>ALIVE</td>
+          |  <td>ALIVE</td>
+          |  <td>DEAD</td>
+          |  blah blah
         """.stripMargin)
     }
     case HttpRequest(GET, Uri.Path("/stop"), _, _, _) =>
@@ -126,7 +127,7 @@ class SparkWebUiActorSpec extends TestKit(SparkWebUiActorSpec.system) with Impli
     it("should get worker info") {
       val future = actor ? GetWorkerStatus()
       val result = Await.result(future, ShortTimeout.duration).asInstanceOf[SparkWorkersInfo]
-      result.alive should equal (1)
+      result.alive should equal (2)
       result.dead should equal (1)
     }
   }
