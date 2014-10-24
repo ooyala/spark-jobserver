@@ -15,12 +15,13 @@ class JobResultActor extends InstrumentedActor {
   import CommonMessages._
 
   private val config = context.system.settings.config
-  private val cache = new LRUCache[String, Any](config.getInt("spark.jobserver.job-result-cache-size"))
+  private val cache = new LRUCache[String, Any](getClass,
+    config.getInt("spark.jobserver.job-result-cache-size"))
   private val subscribers = mutable.HashMap.empty[String, ActorRef] // subscribers
 
   // metrics
-  val metricSubscribers = MetricsWrapper.newGauge(getClass, "subscribers-size", subscribers.size)
-  val metricResultCache = MetricsWrapper.newGauge(getClass, "result-cache-size", cache.size)
+  private val metricSubscribers =
+    MetricsWrapper.newGauge(getClass, "subscribers-size", subscribers.size)
 
   def wrappedReceive: Receive = {
     case Subscribe(jobId, receiver, events) =>
