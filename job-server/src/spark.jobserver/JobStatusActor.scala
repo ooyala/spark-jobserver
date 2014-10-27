@@ -122,9 +122,7 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
 
     lazy val getShortName = Try(msgClass.split('.').last).toOption.getOrElse(msgClass)
 
-    // TODO: Resolve the proper naming later
     metricStatusRates.getOrElseUpdate(msgClass, MetricsWrapper.newMeter(getClass, getShortName + ".messages")).mark()
-    //metricStatusRates.getOrElseUpdate(msgClass, MetricsWrapper.newMeter(msg.getClass, "messages")).mark()
   }
 
   private def publishMessage(jobId: String, message: StatusMessage) {
