@@ -11,7 +11,6 @@ import ooyala.common.akka.metrics.MetricsWrapper
  */
 trait ActorMetrics extends ActorStack {
   // Timer includes a histogram of wrappedReceive() duration as well as moving avg of rate of invocation
-  //val metricReceiveTimer = Metrics.newTimer(getClass, "message-handler",
   val metricReceiveTimer = MetricsWrapper.newTimer(getClass, "message-handler")
 
   override def receive: Receive = {

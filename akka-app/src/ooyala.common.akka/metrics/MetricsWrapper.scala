@@ -14,33 +14,38 @@ object MetricsWrapper {
   private var shutdownHook: Thread = null
 
   def startDatadogReporter(config: DatadogConfig) = {
-    val transportBuilder = new HttpTransport.Builder
-    if (config.apiKey.isDefined) {
-      transportBuilder.withApiKey(config.apiKey.get)
+    config.apiKey match {
+      case Some(apiKey) =>
+        val httpTransport = new HttpTransport.Builder().withApiKey(apiKey).build
+        val datadogReporterBuilder = DatadogReporter.forRegistry(registry)
+
+        config.hostName match {
+          case Some(hostName) =>
+            datadogReporterBuilder.withHost(hostName)
+          case _ =>
+            logger.info("No host name provided, won't report host name to datadog.")
+        }
+
+        val datadogReporter = datadogReporterBuilder
+          .withTransport(httpTransport)
+          .withExpansions(Expansion.ALL)
+          .build
+
+
+        shutdownHook = new Thread {
+          override def run {
+            datadogReporter.stop
+          }
+        }
+
+        // Start the reporter and set up shutdown hooks
+        datadogReporter.start(config.durationInSeconds, TimeUnit.SECONDS)
+        Runtime.getRuntime.addShutdownHook(shutdownHook)
+
+        logger.info("Datadog reporting started.")
+      case _ =>
+        logger.info("No api key provided, Datadog reporting not started.")
     }
-    val httpTransport = transportBuilder.build
-
-    val datadogReporterBuilder = DatadogReporter.forRegistry(registry)
-    if (config.hostName.isDefined) {
-      datadogReporterBuilder.withHost(config.hostName.get)
-    }
-    val datadogReporter = datadogReporterBuilder
-      .withTransport(httpTransport)
-      .withExpansions(Expansion.ALL)
-      .build
-
-    // TODO: Use the cleaner way if possible
-    shutdownHook = new Thread {
-      override def run {
-        datadogReporter.stop
-      }
-    }
-
-    // Start the reporter and set up shutdown hooks
-    datadogReporter.start(config.durationInSeconds, TimeUnit.SECONDS)
-    Runtime.getRuntime.addShutdownHook(shutdownHook)
-
-    logger.info("Datadog reporting started.")
   }
 
   def newGauge[T](klass: Class[_], name: String, metric: => T): Gauge[T] = {
@@ -55,10 +60,6 @@ object MetricsWrapper {
 
   def newCounter(klass: Class[_], name: String): Counter =
     registry.counter(MetricRegistry.name(klass, name))
-
-  // TODO: Is this necessary???
-  def newCounter(klass: Class[_], name: String, scope: String): Counter =
-    registry.counter(MetricRegistry.name(klass, name, scope))
 
   def newTimer(klass: Class[_], name: String): Timer =
     registry.timer(MetricRegistry.name(klass, name))
