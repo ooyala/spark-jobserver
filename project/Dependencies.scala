@@ -56,8 +56,7 @@ object Dependencies {
     "com.codahale.metrics" % "metrics-core" % "3.0.1",
     "org.coursera" % "metrics-datadog" % "1.0.1",
     "org.apache.httpcomponents" % "fluent-hc" % "4.3.2",
-    "org.apache.httpcomponents" % "httpcore" % "4.3.2",
-    "org.ini4j" % "ini4j" % "0.5.2"
+    "org.apache.httpcomponents" % "httpcore" % "4.3.2"
   )
 
   val repos = Seq(
