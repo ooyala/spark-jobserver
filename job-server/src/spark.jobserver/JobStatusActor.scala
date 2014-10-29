@@ -1,9 +1,9 @@
 package spark.jobserver
 
 import akka.actor.ActorRef
-import com.yammer.metrics.core.Meter
+import com.codahale.metrics.Meter
+import ooyala.common.akka.metrics.MetricsWrapper
 import ooyala.common.akka.InstrumentedActor
-import ooyala.common.akka.metrics.YammerMetrics
 import scala.collection.mutable
 import scala.util.Try
 import spark.jobserver.io.{ JobInfo, JobDAO }
@@ -17,7 +17,7 @@ object JobStatusActor {
  * It is an actor to manage job status updates
  *
  */
-class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetrics {
+class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
   import CommonMessages._
   import JobStatusActor._
   import spark.jobserver.util.DateUtils.dateTimeToScalaWrapper
@@ -28,9 +28,14 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetric
   private val subscribers = new mutable.HashMap[String, mutable.MultiMap[Class[_], ActorRef]]
 
   // metrics
-  val metricNumSubscriptions = gauge("num-subscriptions", subscribers.size)
-  val metricNumJobInfos = gauge("num-running-jobs", infos.size)
+  val metricNumSubscriptions = MetricsWrapper.newGauge(getClass, "num-subscriptions", subscribers.size)
+  val metricNumJobInfos = MetricsWrapper.newGauge(getClass, "num-running-jobs", infos.size)
   val metricStatusRates = mutable.HashMap.empty[String, Meter]
+
+  // timer for job latency
+  private val jobLatencyTimer = MetricsWrapper.newTimer(getClass, "job-latency");
+  // timer context to measure the job latency (jobId to Timer.Context mapping)
+  private val latencyTimerContextMap = new mutable.HashMap[String, com.codahale.metrics.Timer.Context]
 
   override def wrappedReceive: Receive = {
     case GetRunningJobStatus =>
@@ -63,12 +68,14 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetric
       }
 
     case msg: JobStarted =>
+      latencyTimerContextMap(msg.jobId) = jobLatencyTimer.time();
       processStatus(msg, "started") {
         case (info, msg) =>
           info.copy(startTime = msg.startTime)
       }
 
     case msg: JobFinished =>
+      stopTimer(msg.jobId)
       processStatus(msg, "finished OK", remove = true) {
         case (info, msg) =>
           info.copy(endTime = Some(msg.endTime))
@@ -81,10 +88,18 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetric
       }
 
     case msg: JobErroredOut =>
+      stopTimer(msg.jobId)
       processStatus(msg, "finished with an error", remove = true) {
         case (info, msg) =>
           info.copy(endTime = Some(msg.endTime), error = Some(msg.err))
       }
+  }
+
+  private def stopTimer(jobId: String) {
+    latencyTimerContextMap.get(jobId).foreach { timerContext =>
+      timerContext.stop()
+      latencyTimerContextMap.remove(jobId)
+    }
   }
 
   private def processStatus[M <: StatusMessage](msg: M, logMessage: String, remove: Boolean = false)
@@ -107,7 +122,7 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor with YammerMetric
 
     lazy val getShortName = Try(msgClass.split('.').last).toOption.getOrElse(msgClass)
 
-    metricStatusRates.getOrElseUpdate(msgClass, meter(getShortName, "messages")).mark()
+    metricStatusRates.getOrElseUpdate(msgClass, MetricsWrapper.newMeter(getClass, getShortName + ".messages")).mark()
   }
 
   private def publishMessage(jobId: String, message: StatusMessage) {

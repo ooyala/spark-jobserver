@@ -1,6 +1,7 @@
 package spark.jobserver
 
 import java.net.URL
+import ooyala.common.akka.metrics.MetricsWrapper
 import org.apache.spark.{SparkContext, SparkEnv}
 import org.joda.time.DateTime
 import spark.jobserver.io.JobDAO
@@ -15,7 +16,7 @@ case class JobJarInfo(constructor: () => SparkJob,
  * jobs, why retrieve the jar and load it every single time?
  */
 class JobCache(maxEntries: Int, dao: JobDAO, sparkContext: SparkContext, loader: ContextURLClassLoader) {
-  private val cache = new LRUCache[(String, DateTime, String), JobJarInfo](maxEntries)
+  private val cache = new LRUCache[(String, DateTime, String), JobJarInfo](getClass, maxEntries)
 
   /**
    * Retrieves the given SparkJob class from the cache if it's there, otherwise use the DAO to retrieve it.
@@ -24,6 +25,7 @@ class JobCache(maxEntries: Int, dao: JobDAO, sparkContext: SparkContext, loader:
    * @param classPath the fully qualified name of the class/object to load
    */
   def getSparkJob(appName: String, uploadTime: DateTime, classPath: String): JobJarInfo = {
+
     cache.get((appName, uploadTime, classPath), {
       val jarFilePath = new java.io.File(dao.retrieveJarFile(appName, uploadTime)).getAbsolutePath()
       sparkContext.addJar(jarFilePath)   // Adds jar for remote executors

@@ -2,7 +2,7 @@ package spark.jobserver
 
 import akka.actor.ActorRef
 import ooyala.common.akka.InstrumentedActor
-import ooyala.common.akka.metrics.YammerMetrics
+import ooyala.common.akka.metrics.MetricsWrapper
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import scala.collection.mutable
@@ -25,13 +25,15 @@ object RddManagerActorMessages {
   case object GetRddNames
 }
 
-class RddManagerActor(sparkContext: SparkContext) extends InstrumentedActor with YammerMetrics {
+class RddManagerActor(sparkContext: SparkContext) extends InstrumentedActor {
   import RddManagerActorMessages._
 
   private val namesToIds = new mutable.HashMap[String, Int]()
   private val waiters =
     new mutable.HashMap[String, mutable.Set[ActorRef]] with mutable.MultiMap[String, ActorRef]
   private val inProgress = mutable.Set[String]()
+  // Metrics
+  private val rddNumGauge = MetricsWrapper.newGauge(getClass, "num-rdds", namesToIds.size)
 
   def wrappedReceive: Receive = {
     case GetRddRequest(name) => sender ! getExistingRdd(name)

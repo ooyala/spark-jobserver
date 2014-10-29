@@ -2,7 +2,7 @@ package spark.jobserver
 
 import akka.actor.ActorRef
 import ooyala.common.akka.InstrumentedActor
-import ooyala.common.akka.metrics.YammerMetrics
+import ooyala.common.akka.metrics.MetricsWrapper
 import scala.collection.mutable
 import spark.jobserver.util.LRUCache
 
@@ -11,16 +11,17 @@ import spark.jobserver.util.LRUCache
  *
  * TODO: support multiple subscribers for same JobID
  */
-class JobResultActor extends InstrumentedActor with YammerMetrics {
+class JobResultActor extends InstrumentedActor {
   import CommonMessages._
 
   private val config = context.system.settings.config
-  private val cache = new LRUCache[String, Any](config.getInt("spark.jobserver.job-result-cache-size"))
+  private val cache = new LRUCache[String, Any](getClass,
+    config.getInt("spark.jobserver.job-result-cache-size"))
   private val subscribers = mutable.HashMap.empty[String, ActorRef] // subscribers
 
   // metrics
-  val metricSubscribers = gauge("subscribers-size", subscribers.size)
-  val metricResultCache = gauge("result-cache-size", cache.size)
+  private val metricSubscribers =
+    MetricsWrapper.newGauge(getClass, "subscribers-size", subscribers.size)
 
   def wrappedReceive: Receive = {
     case Subscribe(jobId, receiver, events) =>

@@ -3,12 +3,12 @@ package spark.jobserver
 import akka.actor._
 import akka.testkit.{TestKit, ImplicitSender}
 import com.typesafe.config.ConfigFactory
-import org.scalatest.time.Second
-import spark.jobserver.io.JobDAO
+import ooyala.common.akka.metrics.MetricsWrapper
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter}
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter}
-
+import spark.jobserver.CommonMessages.{Unsubscribe, JobStarted, Subscribe}
+import spark.jobserver.io.JobDAO
 
 object LocalContextSupervisorSpec {
   val config = ConfigFactory.parseString("""
@@ -50,6 +50,8 @@ class LocalContextSupervisorSpec extends TestKit(LocalContextSupervisorSpec.syst
 
   val contextConfig = LocalContextSupervisorSpec.config.getConfig("spark.context-settings")
 
+  val counterName = "spark.jobserver.LocalContextSupervisorActor.num-contexts"
+
   // This is needed to help tests pass on some MBPs when working from home
   System.setProperty("spark.driver.host", "localhost")
 
@@ -59,7 +61,12 @@ class LocalContextSupervisorSpec extends TestKit(LocalContextSupervisorSpec.syst
   }
 
   after {
+    val counters: java.util.SortedMap[String, com.codahale.metrics.Counter] = MetricsWrapper.registry.getCounters
+    val counter =  counters.get(counterName)
+    counter.dec(counter.getCount)
+
     ooyala.common.akka.AkkaTestUtils.shutdownAndWait(supervisor)
+
   }
 
   import ContextSupervisor._
@@ -117,5 +124,28 @@ class LocalContextSupervisorSpec extends TestKit(LocalContextSupervisorSpec.syst
       supervisor ! AddContext("c1", contextConfig)
       expectMsg(ContextAlreadyExists)
     }
+
+    it("should inc/dec context counter correctly")  {
+      val counters = MetricsWrapper.registry.getCounters
+      val counter =  counters.get(counterName)
+      counter should not be (null)
+
+      supervisor ! AddContext("c11", contextConfig)
+      expectMsg(ContextInitialized)
+      supervisor ! ListContexts
+      expectMsg(Seq("c11"))
+
+      (counter.getCount) should equal (1)
+
+      supervisor ! StopContext("c11")
+      expectMsg(ContextStopped)
+      supervisor ! ListContexts
+      expectMsg(Seq.empty[String])
+
+
+      (counter.getCount) should equal (0)
+    }
+
+
   }
 }

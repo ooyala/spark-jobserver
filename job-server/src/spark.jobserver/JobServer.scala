@@ -4,8 +4,9 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import com.typesafe.config.{Config, ConfigFactory}
 import java.io.File
-import spark.jobserver.io.JobDAO
+import ooyala.common.akka.metrics.{DatadogConfigParser, MetricsWrapper}
 import org.slf4j.LoggerFactory
+import spark.jobserver.io.JobDAO
 
 /**
  * The Spark Job Server is a web service that allows users to submit and run Spark jobs, check status,
@@ -56,6 +57,10 @@ object JobServer {
     // Create initial contexts
     supervisor ! ContextSupervisor.AddContextsFromConfig
     new WebApi(system, config, port, jarManager, supervisor, jobInfo, sparkWebUi).start()
+
+    // Setups and starts datadog reporting
+    val datadogConfig = DatadogConfigParser.parse(config)
+    MetricsWrapper.startDatadogReporter(datadogConfig)
   }
 
   def main(args: Array[String]) {

@@ -52,7 +52,7 @@ Context routes
 
 - delete a context with given contextName
 
-        user->WebApi: DELECT /contexts/<contextName>
+        user->WebApi: DELETE /contexts/<contextName>
         WebApi->LocalContextSupervisor: StopContext(contextName)
         opt If no such context
           LocalContextSupervisor->WebApi: NoSuchContext

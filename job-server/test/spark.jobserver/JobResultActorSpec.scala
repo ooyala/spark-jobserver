@@ -2,6 +2,8 @@ package spark.jobserver
 
 import akka.actor.{Props, PoisonPill, ActorRef, ActorSystem}
 import akka.testkit.{TestKit, ImplicitSender}
+import com.codahale.metrics.Counter
+import ooyala.common.akka.metrics.MetricsWrapper
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter, BeforeAndAfterAll}
 
@@ -19,11 +21,26 @@ with FunSpec with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
     ooyala.common.akka.AkkaTestUtils.shutdownAndWait(JobResultActorSpec.system)
   }
 
+  // Metrics for job result cache
+  private val metricCacheHitName = "spark.jobserver.JobResultActor.cache-hit"
+  private val metricCacheMissName = "spark.jobserver.JobResultActor.cache-miss"
+  var metricCacheHit: Counter = _
+  var metricCacheMiss: Counter = _
   var actor: ActorRef = _
 
   // Create a new supervisor and FileDAO / working directory with every test, so the state of one test
   // never interferes with the other.
   before {
+    // Resets the metrics for the job result cache
+    MetricsWrapper.getRegistry.remove(metricCacheHitName)
+    MetricsWrapper.getRegistry.remove(metricCacheMissName)
+    MetricsWrapper.getRegistry.counter(metricCacheHitName)
+    MetricsWrapper.getRegistry.counter(metricCacheMissName)
+
+    val counters = MetricsWrapper.getRegistry.getCounters
+    metricCacheHit = counters.get(metricCacheHitName)
+    metricCacheMiss = counters.get(metricCacheMissName)
+
     actor = system.actorOf(Props[JobResultActor])
   }
 
@@ -71,5 +88,41 @@ with FunSpec with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
     }
   }
 
+  describe("JobResultActor cache") {
+    it("should increase cache hit count") {
+      metricCacheHit.getCount should equal(0)
+      metricCacheMiss.getCount should equal(0)
 
+      actor ! JobResult("jobId", 10)
+      actor ! GetJobResult("jobId")
+      expectMsg(JobResult("jobId", 10))
+      // Hits the job result cache for the first time
+      metricCacheHit.getCount should equal(1)
+      metricCacheMiss.getCount should equal(0)
+
+      actor ! GetJobResult("jobId")
+      expectMsg(JobResult("jobId", 10))
+      // Hits the job result cache for the second time
+      metricCacheHit.getCount should equal(2)
+      metricCacheMiss.getCount should equal(0)
+    }
+
+    it("should increase cache miss count") {
+      metricCacheHit.getCount should equal(0)
+      metricCacheMiss.getCount should equal(0)
+
+      actor ! JobResult("jobId", 10)
+      actor ! GetJobResult("NoJobId")
+      expectMsg(NoSuchJobId)
+      metricCacheHit.getCount should equal(0)
+      // Misses the job result cache for the first time
+      metricCacheMiss.getCount should equal(1)
+
+      actor ! GetJobResult("NoJobId")
+      expectMsg(NoSuchJobId)
+      metricCacheHit.getCount should equal(0)
+      // Misses the job result cache for the second time
+      metricCacheMiss.getCount should equal(2)
+    }
+  }
 }

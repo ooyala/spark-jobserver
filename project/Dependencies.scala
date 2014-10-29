@@ -52,7 +52,13 @@ object Dependencies {
 
   lazy val serverDeps = apiDeps ++ yodaDeps
   lazy val apiDeps = sparkDeps :+ typeSafeConfigDeps
-  
+  lazy val monitoringDeps = Seq(
+    "com.codahale.metrics" % "metrics-core" % "3.0.1",
+    "org.coursera" % "metrics-datadog" % "1.0.1",
+    "org.apache.httpcomponents" % "fluent-hc" % "4.3.2",
+    "org.apache.httpcomponents" % "httpcore" % "4.3.2"
+  )
+
   val repos = Seq(
     "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/",
     "sonatype snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",

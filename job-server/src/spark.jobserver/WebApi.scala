@@ -19,6 +19,8 @@ import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.json.DefaultJsonProtocol._
 import spray.routing.{ HttpService, Route, RequestContext }
 
+import com.codahale.metrics._
+
 class WebApi(system: ActorSystem, config: Config, port: Int,
              jarManager: ActorRef, supervisor: ActorRef, jobInfo: ActorRef, sparkWebUiActor: ActorRef)
     extends HttpService with CommonRoutes {
