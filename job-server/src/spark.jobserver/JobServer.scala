@@ -53,7 +53,7 @@ object JobServer {
     // Monitors JobDAO metrics if metrics level is appropriate.
     val metricsLevel = Try(MetricsLevel.valueOf(config.getInt("spark.jobserver.metrics.level")))
       .getOrElse(MetricsLevel.NONE)
-    val jobDAO =  metricsLevel match {
+    val jobDAO = metricsLevel match {
       case MetricsLevel.NONE => backingJobDao
       case level => JobDAOMetricsMonitor.newInstance(backingJobDao, level)
     }

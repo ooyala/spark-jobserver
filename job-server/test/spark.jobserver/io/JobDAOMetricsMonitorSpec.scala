@@ -16,7 +16,7 @@ class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAn
   private val jarInfo = JarInfo(appName, DateTime.now)
   private val classPath = "classPath"
   private val jobInfo = JobInfo(jobId, contextName, jarInfo, classPath, DateTime.now, None, None)
-  private val jobConfig = ConfigFactory.parseString("{marco=pollo}")
+  private val jobConfig = ConfigFactory.parseString("{job-name=test}")
   private val contextConfig = ConfigFactory.parseString({"num-cpu=2"})
   private val dao = new InMemoryDAO
   private val basicMetrics = Array("saveJar", "saveJobInfo", "saveJobConfig", "saveContextConfig").map {
@@ -41,7 +41,7 @@ class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAn
   }
 
   describe("JobDAO metrics monitoring") {
-    it("should increments basic metric count") {
+    it("should increment basic metric count") {
       val jobDao = JobDAOMetricsMonitor.newInstance(dao, MetricsLevel.BASIC)
       val meters = MetricsWrapper.getRegistry.getMeters
       val histograms = MetricsWrapper.getRegistry.getHistograms
@@ -52,7 +52,7 @@ class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAn
           meters.get(metricName).getCount should equal(0)
       }
 
-      jobDao.saveJar("test", DateTime.now(), jarBytes)
+      jobDao.saveJar(appName, DateTime.now(), jarBytes)
       jobDao.saveJobInfo(jobInfo)
       jobDao.saveJobConfig(jobId, jobConfig)
       jobDao.saveContextConfig(contextName, contextConfig)
@@ -63,7 +63,7 @@ class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAn
           meters.get(metricName).getCount should equal(1)
       }
 
-      jobDao.saveJar("test", DateTime.now(), jarBytes)
+      jobDao.saveJar(appName, DateTime.now(), jarBytes)
       jobDao.saveJobInfo(jobInfo)
       jobDao.saveJobConfig(jobId, jobConfig)
       jobDao.saveContextConfig(contextName, contextConfig)
@@ -92,7 +92,7 @@ class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAn
           histograms.get(metricName).getCount should equal(0)
       }
 
-      jobDao.saveJar("test", DateTime.now(), jarBytes)
+      jobDao.saveJar(appName, DateTime.now(), jarBytes)
       jobDao.saveJobInfo(jobInfo)
       jobDao.saveJobConfig(jobId, jobConfig)
       jobDao.saveContextConfig(contextName, contextConfig)
@@ -103,7 +103,7 @@ class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAn
           histograms.get(metricName).getCount should equal(1)
       }
 
-      jobDao.saveJar("test", DateTime.now(), jarBytes)
+      jobDao.saveJar(appName, DateTime.now(), jarBytes)
       jobDao.saveJobInfo(jobInfo)
       jobDao.saveJobConfig(jobId, jobConfig)
       jobDao.saveContextConfig(contextName, contextConfig)
@@ -118,23 +118,18 @@ class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAn
       fineMetrics.foreach {
         metricName => {
           val h = histograms.get(metricName).getSnapshot
-          metricName match {
-            case s if s.endsWith("JarSize") => {
-              h.getMedian should equal(jarBytes.length)
-            }
-            case s if s.endsWith("JobInfoSize") => {
-              h.getMedian should equal(contextName.length + classPath.length)
-            }
-            case s if s.endsWith("JobConfigSize") => {
-              val configStr = jobConfig.root().render(ConfigRenderOptions.concise())
-              h.getMedian should equal(configStr.length)
-            }
-            case s if s.endsWith("ContextConfigSize") => {
-              val configStr = contextConfig.root().render(ConfigRenderOptions.concise())
-              h.getMedian should equal(contextName.length + configStr.length)
-            }
-            case _ =>
-              fail("Metric " + metricName + " not verified")
+          if (metricName.endsWith("JarSize")) {
+            h.getMedian should equal(appName.length + jarBytes.length)
+          } else if (metricName.endsWith("JobInfoSize")) {
+            h.getMedian should equal(contextName.length + classPath.length)
+          } else if (metricName.endsWith("JobConfigSize")) {
+            val configStr = jobConfig.root().render(ConfigRenderOptions.concise())
+            h.getMedian should equal(configStr.length)
+          } else if (metricName.endsWith("ContextConfigSize")) {
+            val configStr = contextConfig.root().render(ConfigRenderOptions.concise())
+            h.getMedian should equal(contextName.length + configStr.length)
+          } else {
+            fail("Metric " + metricName + " not verified")
           }
         }
       }
