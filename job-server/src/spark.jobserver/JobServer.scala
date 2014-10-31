@@ -4,9 +4,10 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import com.typesafe.config.{Config, ConfigFactory}
 import java.io.File
-import ooyala.common.akka.metrics.{DatadogConfigParser, MetricsWrapper}
+import ooyala.common.akka.metrics.{DatadogConfigParser, MetricsLevel, MetricsWrapper}
 import org.slf4j.LoggerFactory
-import spark.jobserver.io.JobDAO
+import scala.util.Try
+import spark.jobserver.io.{JobDAO, JobDAOMetricsMonitor}
 
 /**
  * The Spark Job Server is a web service that allows users to submit and run Spark jobs, check status,
@@ -48,7 +49,14 @@ object JobServer {
     val system = makeSystem(config)
     val clazz = Class.forName(config.getString("spark.jobserver.jobdao"))
     val ctor = clazz.getDeclaredConstructor(Class.forName("com.typesafe.config.Config"))
-    val jobDAO = ctor.newInstance(config).asInstanceOf[JobDAO]
+    val backingJobDao = ctor.newInstance(config).asInstanceOf[JobDAO]
+    // Monitors JobDAO metrics if metrics level is appropriate.
+    val metricsLevel = Try(MetricsLevel.valueOf(config.getInt("spark.jobserver.metrics.level")))
+      .getOrElse(MetricsLevel.NONE)
+    val jobDAO = metricsLevel match {
+      case MetricsLevel.NONE => backingJobDao
+      case level => JobDAOMetricsMonitor.newInstance(backingJobDao, level)
+    }
 
     val jarManager = system.actorOf(Props(classOf[JarManager], jobDAO), "jar-manager")
     val supervisor = system.actorOf(Props(classOf[LocalContextSupervisorActor], jobDAO), "context-supervisor")
