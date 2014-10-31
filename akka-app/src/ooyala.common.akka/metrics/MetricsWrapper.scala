@@ -13,6 +13,9 @@ object MetricsWrapper {
   val registry: MetricRegistry = new MetricRegistry
   private var shutdownHook: Thread = null
 
+  // Registers JVM metrics for monitoring
+  JvmMetricsWrapper.registerJvmMetrics(registry)
+
   def startDatadogReporter(config: DatadogConfig) = {
     config.apiKey match {
       case Some(apiKey) =>
