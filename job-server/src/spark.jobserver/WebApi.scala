@@ -73,7 +73,8 @@ class WebApi(system: ActorSystem, config: Config, port: Int,
       post {
         path(Segment) { appName =>
           entity(as[Array[Byte]]) { jarBytes =>
-            val future = jarManager ? StoreJar(appName, jarBytes)
+            // increase the timeout here since the size of jarBytes could be large
+            val future = jarManager.ask(StoreJar(appName, jarBytes))(300 seconds)
             respondWithMediaType(MediaTypes.`application/json`) { ctx =>
               future.map {
                 case JarStored  => ctx.complete(StatusCodes.OK)
