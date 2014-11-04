@@ -20,3 +20,7 @@ resolvers += Resolver.url(
 addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.1")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "0.6.3")
+
+resolvers += "jgit-repo" at "http://download.eclipse.org/jgit/maven"
+
+addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.6.4")
