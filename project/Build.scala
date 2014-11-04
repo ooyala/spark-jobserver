@@ -1,14 +1,16 @@
 import sbt._
+import sbt.Package.ManifestAttributes
 import Keys._
 import sbtassembly.Plugin._
 import AssemblyKeys._
 import spray.revolver.RevolverPlugin._
 import spray.revolver.Actions
 import com.typesafe.sbt.SbtScalariform._
+import com.typesafe.sbt.SbtNativePackager._
+import com.typesafe.sbt.SbtGit._
 import org.scalastyle.sbt.ScalastylePlugin
 import scalariform.formatter.preferences._
 import bintray.Plugin.bintrayPublishSettings
-import com.typesafe.sbt.SbtNativePackager._
 import NativePackagerKeys._
 
 // There are advantages to using real Scala build files with SBT:
@@ -116,6 +118,9 @@ object JobServerBuild extends Build {
     crossPaths   := false,
     scalaVersion := "2.10.4",
     scalaBinaryVersion := "2.10",
+    packageOptions := Seq(ManifestAttributes(
+      ("SHA", git.gitHeadCommit.value.get)
+    )),
 
     runScalaStyle := {
       org.scalastyle.sbt.PluginKeys.scalastyle.toTask("").value
