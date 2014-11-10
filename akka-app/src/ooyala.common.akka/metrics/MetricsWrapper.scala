@@ -1,5 +1,6 @@
 package ooyala.common.akka.metrics
 
+import collection.JavaConverters._
 import com.codahale.metrics._
 import java.util.concurrent.TimeUnit
 import org.coursera.metrics.datadog.DatadogReporter
@@ -24,9 +25,17 @@ object MetricsWrapper {
 
         config.hostName match {
           case Some(hostName) =>
+            logger.debug("Datadog reporter: hostname - " + hostName)
             datadogReporterBuilder.withHost(hostName)
           case _ =>
             logger.info("No host name provided, won't report host name to datadog.")
+        }
+
+        // Adds tags if provided
+        config.tags.foreach {
+          tags =>
+            logger.debug("Datadog reporter: tags - " + tags)
+            datadogReporterBuilder.withTags(tags.asJava)
         }
 
         val datadogReporter = datadogReporterBuilder
@@ -45,7 +54,7 @@ object MetricsWrapper {
         datadogReporter.start(config.durationInSeconds, TimeUnit.SECONDS)
         Runtime.getRuntime.addShutdownHook(shutdownHook)
 
-        logger.info("Datadog reporting started.")
+        logger.info("Datadog reporter started.")
       case _ =>
         logger.info("No api key provided, Datadog reporting not started.")
     }
