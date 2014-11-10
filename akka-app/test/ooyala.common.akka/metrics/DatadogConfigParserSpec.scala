@@ -73,5 +73,33 @@ class DatadogConfigParserSpec extends FunSpec with ShouldMatchers {
 
       datadogConfig.apiKey.isDefined should equal(false)
     }
+
+    it ("should parse a valid list of tags") {
+      val configStr =
+        """
+        spark.jobserver.metrics.datadog {
+          tags = ["test version", "has tags"],
+        }
+        """
+      val config = ConfigFactory.parseString(configStr)
+      val datadogConfig = DatadogConfigParser.parse(config)
+
+      val tags = datadogConfig.tags
+      tags.isDefined should equal(true)
+      tags.get should equal(List("test version", "has tags"))
+    }
+
+    it ("should parse no tags") {
+      val configStr =
+        """
+        spark.jobserver.metrics.datadog {
+        }
+        """
+      val config = ConfigFactory.parseString(configStr)
+      val datadogConfig = DatadogConfigParser.parse(config)
+
+      val tags = datadogConfig.tags
+      tags.isDefined should equal(false)
+    }
  }
 }
