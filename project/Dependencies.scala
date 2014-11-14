@@ -20,9 +20,12 @@ object Dependencies {
     // to use this one
     "com.typesafe.akka" %% "akka-slf4j" % "2.2.4" % "provided",
     "io.spray" %% "spray-json" % "1.2.5",
-    "io.spray" % "spray-can" % "1.2.0",
-    "io.spray" % "spray-routing" % "1.2.0",
-    "io.spray" % "spray-client" % "1.2.0",
+    // upgrade version from 1.2.0 to 1.2.1 to solve the logging noise issue
+    // details here: https://groups.google.com/forum/#!msg/spray-user/YN2ocRzwhY0/KJOegaDIep8J
+    // NOTE: DO NOT upgrade to 1.2.2 since it is incompatiable and will cause tests fail
+    "io.spray" % "spray-can" % "1.2.1",
+    "io.spray" % "spray-routing" % "1.2.1",
+    "io.spray" % "spray-client" % "1.2.1",
     yammerDeps
   ) ++ yodaDeps
 
