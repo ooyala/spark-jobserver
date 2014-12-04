@@ -1,3 +1,5 @@
+# ***This is not the official open source version.  For that, please go to [spark-jobserver/spark-jobserver](https://github.com/spark-jobserver/spark-jobserver).  All issues and pull requests should start there.
+
 spark-jobserver provides a RESTful interface for submitting and managing [Apache Spark](http://spark-project.org) jobs, jars, and job contexts.
 This repo contains the complete Spark job server project, including unit tests and deploy scripts.
 
