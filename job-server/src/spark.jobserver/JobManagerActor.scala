@@ -102,8 +102,8 @@ class JobManagerActor(dao: JobDAO,
         // Load side jars first in case the ContextFactory comes from it
         getSideJars(contextConfig).foreach { jarUri => jarLoader.addURL(new URL(convertJarUriSparkToJava(jarUri))) }
         sparkContext = createContextFromConfig()
-        // metric for monitoring #executors in spark context
-        MetricsWrapper.newGauge(getClass, "num-sparkExecutor", sparkContext.getExecutorStorageStatus.size)
+        // metric for monitoring the number of executors in spark context
+        MetricsWrapper.newGauge(getClass, "num-spark-executors", sparkContext.getExecutorStorageStatus.size)
 
         sparkEnv = SparkEnv.get
         rddManagerActor = context.actorOf(Props(classOf[RddManagerActor], sparkContext), "rdd-manager-actor")

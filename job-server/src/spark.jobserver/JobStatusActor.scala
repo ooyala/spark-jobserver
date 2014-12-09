@@ -64,7 +64,7 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
       // TODO (kelvinchu): Check if the jobId exists in the persistence store already
       if (!infos.contains(jobInfo.jobId)) {
         infos(jobInfo.jobId) = jobInfo
-        metricJobSubmissionRate.mark();
+        metricJobSubmissionRate.mark()
       } else {
         sender ! JobInitAlready
       }
