@@ -30,6 +30,7 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
   // metrics
   val metricNumSubscriptions = MetricsWrapper.newGauge(getClass, "num-subscriptions", subscribers.size)
   val metricNumJobInfos = MetricsWrapper.newGauge(getClass, "num-running-jobs", infos.size)
+  val metricJobSubmissionRate = MetricsWrapper.newMeter(getClass, "job-submission-rate")
   val metricStatusRates = mutable.HashMap.empty[String, Meter]
 
   // timer for job latency
@@ -63,6 +64,7 @@ class JobStatusActor(jobDao: JobDAO) extends InstrumentedActor {
       // TODO (kelvinchu): Check if the jobId exists in the persistence store already
       if (!infos.contains(jobInfo.jobId)) {
         infos(jobInfo.jobId) = jobInfo
+        metricJobSubmissionRate.mark()
       } else {
         sender ! JobInitAlready
       }
