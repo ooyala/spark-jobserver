@@ -63,7 +63,7 @@ object MetricsWrapper {
 
         logger.info("Datadog reporter started.")
       case _ =>
-        logger.info("No api key provided, Datadog reporting not started.")
+        logger.info("No transport available, Datadog reporting not started.")
     }
   }
 
