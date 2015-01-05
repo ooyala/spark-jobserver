@@ -39,7 +39,7 @@ object DatadogConfigParser {
    *  Example config setting in spark.jobserver.metrics.datadog
    *  spark.jobserver.metrics.datadog {
    *    hostname = example
-   *    agentport = 9999
+   *    agentport = 8125
    *    apikey = example
    *    tags = ["tag1","tag2",...]
    *    duration = 100
