@@ -5,7 +5,7 @@ import com.codahale.metrics._
 import java.util.concurrent.TimeUnit
 import org.coursera.metrics.datadog.DatadogReporter
 import org.coursera.metrics.datadog.DatadogReporter.Expansion
-import org.coursera.metrics.datadog.transport.HttpTransport
+import org.coursera.metrics.datadog.transport.{HttpTransport, Transport, UdpTransport}
 import org.slf4j.LoggerFactory
 import scala.util.Try
 
@@ -18,11 +18,19 @@ object MetricsWrapper {
   JvmMetricsWrapper.registerJvmMetrics(registry)
 
   def startDatadogReporter(config: DatadogConfig) = {
-    config.apiKey match {
-      case Some(apiKey) =>
-        val httpTransport = new HttpTransport.Builder().withApiKey(apiKey).build
+    val transportOpt: Option[Transport] = config.agentPort.map {
+      port =>
+        logger.debug("Datadog reporter: datadog agent port - " + port)
+        new UdpTransport.Builder().withPort(port).build
+    } orElse config.apiKey.map {
+      apiKey => new HttpTransport.Builder().withApiKey(apiKey).build
+    }
+
+    transportOpt match {
+      case Some(transport) =>
         val datadogReporterBuilder = DatadogReporter.forRegistry(registry)
 
+        // Adds host name
         config.hostName match {
           case Some(hostName) =>
             logger.debug("Datadog reporter: hostname - " + hostName)
@@ -39,10 +47,9 @@ object MetricsWrapper {
         }
 
         val datadogReporter = datadogReporterBuilder
-          .withTransport(httpTransport)
+          .withTransport(transport)
           .withExpansions(Expansion.ALL)
           .build
-
 
         shutdownHook = new Thread {
           override def run {
@@ -56,7 +63,7 @@ object MetricsWrapper {
 
         logger.info("Datadog reporter started.")
       case _ =>
-        logger.info("No api key provided, Datadog reporting not started.")
+        logger.info("No transport available, Datadog reporting not started.")
     }
   }
 

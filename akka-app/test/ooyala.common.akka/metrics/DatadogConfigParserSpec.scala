@@ -101,5 +101,33 @@ class DatadogConfigParserSpec extends FunSpec with ShouldMatchers {
       val tags = datadogConfig.tags
       tags.isDefined should equal(false)
     }
- }
+
+    it ("should parse a valid datadog agent port") {
+      val configStr =
+        """
+        spark.jobserver.metrics.datadog {
+          agentport = 9999
+        }
+        """
+      val config = ConfigFactory.parseString(configStr)
+      val datadogConfig = DatadogConfigParser.parse(config)
+
+      val agentPort = datadogConfig.agentPort
+      agentPort.isDefined should equal(true)
+      agentPort.get should equal(9999)
+    }
+
+    it ("should parse no datadog agent port") {
+      val configStr =
+        """
+        spark.jobserver.metrics.datadog {
+        }
+        """
+      val config = ConfigFactory.parseString(configStr)
+      val datadogConfig = DatadogConfigParser.parse(config)
+
+      val agentPort = datadogConfig.agentPort
+      agentPort.isDefined should equal(false)
+    }
+  }
 }
