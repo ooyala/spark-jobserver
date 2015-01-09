@@ -5,6 +5,18 @@ import org.slf4j.LoggerFactory
 import scala.slick.driver.{H2Driver, MySQLDriver, JdbcProfile}
 import scala.util.Properties.{envOrElse => getSysEnvOrElse}
 
+/**
+ * HDFS path information. An absolute path is required and the namenode url and
+ * and port are optional.
+ *
+ * @param namenode HDFS namenode url (NOTE: doesn't not consider 2 namenodes, etc)
+ * @param port HDFS namenode port the process is running on
+ * @param path HDFS absolute path (without file) to store jars
+ */
+case class HdfsPathInfo(namenode: Option[String], port: Option[Int], path: String) {
+  // Correctly returns the full URI to the HDFS path (local FS vs HDFS based the namenode and port)
+  def uri = namenode.map("hdfs://" + _ + port.map(":" + _).getOrElse("")).getOrElse("file:///") + path
+}
 
 /**
  * JDBC configuration
@@ -22,7 +34,8 @@ case class JdbcConfig(url: String,
                       user: String,
                       password: String,
                       jdbcProfile: JdbcProfile,
-                      rootDir: String)
+                      rootDir: String,
+                      hdfsPathInfo: HdfsPathInfo)
 
 /**
  * Trait for a JDBC configuration parser
@@ -37,6 +50,10 @@ trait JdbcConfigParser {
   // Default JDBC connection password
   protected final val defaultPassword =
     getSysEnvOrElse("SPARK_JOBSERVER_SQLDAO_JDBC_PASSWORD", "password")
+  // Default HDFS absolute path
+  protected final val defaultHdfsPath = "/tmp/spark-jobserver/jars"
+  // Default HdfsPathInfo if no HDFS config information provided
+  protected final val defaultHdfsPathInfo = HdfsPathInfo(None, None, defaultHdfsPath)
   // JDBC driver string
   protected val jdbcDriver: String
   // JDBC driver profile
@@ -64,11 +81,32 @@ trait JdbcConfigParser {
       val url = getOrElse(config.getString(configRoot + ".url"), "")
       val user = getOrElse(config.getString(configRoot + ".user"), defaultUser)
       val password = getOrElse(config.getString(configRoot + ".password"), defaultPassword)
-      val jdbcConfig = JdbcConfig(url, jdbcDriver, user, password, jdbcProfile, rootDir)
+      val hdfsPathInfo = parseHdfsPathInfo(config)
+      val jdbcConfig =
+        JdbcConfig(url, jdbcDriver, user, password, jdbcProfile, rootDir, hdfsPathInfo)
 
+      // TODO: Add some validation for the HDFS URI
       if (validate(jdbcConfig)) Some(jdbcConfig) else None
     } else {
       None
+    }
+  }
+
+  /**
+   * Parses a HDFS path information
+   * @param config a configuration to parse
+   * @return an HDFS path as a HdfsPathInfo. If nothing is parse a default path is provided.
+   */
+  private def parseHdfsPathInfo(config: Config): HdfsPathInfo = {
+    val configRoot = sqlDaoConfigPath + "." + "hdfs"
+    if (config.hasPath(configRoot)) {
+      val namenode = getOrElse(Some(config.getString(configRoot + ".namenode")), None)
+      val port = getOrElse(Some(config.getInt(configRoot + ".port")), None)
+      val path = getOrElse(config.getString(configRoot + ".path"), defaultHdfsPath)
+      HdfsPathInfo(namenode, port, path)
+    }
+    else {
+      defaultHdfsPathInfo
     }
   }
 
@@ -167,7 +205,7 @@ object H2ConfigParser extends JdbcConfigParser {
   def defaultConfig: JdbcConfig = {
     val url = jdbcUrlPrefix + "file:" + defaultRootDir + "/h2-db"
 
-    JdbcConfig(url, jdbcDriver, "", "", jdbcProfile, defaultRootDir)
+    JdbcConfig(url, jdbcDriver, "", "", jdbcProfile, defaultRootDir, defaultHdfsPathInfo)
   }
 }
 
