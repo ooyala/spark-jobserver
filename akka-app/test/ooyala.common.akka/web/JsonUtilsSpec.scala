@@ -29,6 +29,18 @@ class JsonUtilsSpec extends FunSpec with ShouldMatchers {
       JsonUtils.listFromJson(json) should equal (batch)
     }
 
+    it("should serialize empty maps") {
+      val expected1 = """{"a":1,"b":{}}"""
+      import JsonUtils._
+      // Serializes a simple map that contains an emtpy map.
+      Map("a" -> 1, "b" -> Map()).toJson.compactPrint should equal (expected1)
+
+      val expected2 = """{"a":1,"b":{"a1":1,"b1":{}}}"""
+      // Serializes a map that embeds an empty map in a deeper level.
+      Map("a" -> 1, "b" -> Map("a1" -> 1, "b1" -> Map())).toJson
+        .compactPrint should equal (expected2)
+    }
+
     it("should serialize some other types") {
       val expected1 = """{"1":[1,2,3]}"""
       import JsonUtils._

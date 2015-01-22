@@ -21,16 +21,21 @@ object JsonUtils {
       case s: String => JsString(s)
       case x: Seq[_] => seqFormat[Any].write(x)
       // Get the type of map keys from the first key, translate the rest the same way
-      case m: Map[_, _] => m.keys.head match {
-        case sym: Symbol =>
-          val map = m.asInstanceOf[Map[Symbol, _]]
-          val pairs = map.map { case (sym, v) => (sym.name -> write(v)) }
-          JsObject(pairs)
-        case s: String => mapFormat[String, Any].write(m.asInstanceOf[Map[String, Any]])
-        case a: Any =>
-          val map = m.asInstanceOf[Map[Any, _]]
-          val pairs = map.map { case (sym, v) => (sym.toString -> write(v)) }
-          JsObject(pairs)
+      case m: Map[_, _] => if (m.isEmpty) {
+        // Translates an emtpy map
+        JsObject(Map[String, JsValue]())
+      } else {
+        m.keys.head match {
+          case sym: Symbol =>
+            val map = m.asInstanceOf[Map[Symbol, _]]
+            val pairs = map.map { case (sym, v) => (sym.name -> write(v))}
+            JsObject(pairs)
+          case s: String => mapFormat[String, Any].write(m.asInstanceOf[Map[String, Any]])
+          case a: Any =>
+            val map = m.asInstanceOf[Map[Any, _]]
+            val pairs = map.map { case (sym, v) => (sym.toString -> write(v))}
+            JsObject(pairs)
+        }
       }
       case a: Array[_] => seqFormat[Any].write(a.toSeq)
       case true        => JsTrue
