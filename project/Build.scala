@@ -152,9 +152,20 @@ object JobServerBuild extends Build {
     )
   }
 
-  lazy val publishSettings = bintrayPublishSettings ++ Seq(
-    licenses += ("Apache-2.0", url("http://choosealicense.com/licenses/apache/")),
-    bintray.Keys.bintrayOrganization in bintray.Keys.bintray := Some("spark-jobserver")
+  lazy val publishSettings = Seq(
+    publishMavenStyle := true,
+
+    // disable publishing the main API jar
+    publishArtifact in (Compile, packageDoc) := false,
+
+    credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
+
+    // Disallow publishing SNAPSHOTs by returning an empty location if try to publish SNAPSHOTs
+    publishTo <<= (version) { version: String =>
+      val nexus = "http://nexus.ooyala.com/nexus/content/repositories/"
+      if (version.trim.endsWith("SNAPSHOT")) None
+      else                                   Some("releases" at nexus + "releases/")
+    }
   )
 
   // change to scalariformSettings for auto format on compile; defaultScalariformSettings to disable
