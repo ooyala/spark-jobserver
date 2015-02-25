@@ -30,7 +30,7 @@ object Dependencies {
   ) ++ yodaDeps
 
   lazy val sparkDeps = Seq(
-    "org.apache.spark" %% "spark-core" % "0.9.1" % "provided" exclude("io.netty", "netty-all"),
+    "org.apache.spark" %% "spark-core" % "1.1.1" % "provided",
     // Force netty version.  This avoids some Spark netty dependency problem.
     "io.netty" % "netty" % "3.6.6.Final"
   )
