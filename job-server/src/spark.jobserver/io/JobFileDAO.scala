@@ -9,6 +9,8 @@ import scala.collection.mutable
 class JobFileDAO(config: Config) extends JobDAO {
   private val logger = LoggerFactory.getLogger(getClass)
 
+  private val MAX_BUFFER_SIZE = 65535
+
   // appName to its set of upload times. Decreasing times in the seq.
   private val apps = mutable.HashMap.empty[String, Seq[DateTime]]
   // jobId to its JobInfo
@@ -184,11 +186,19 @@ class JobFileDAO(config: Config) extends JobDAO {
 
   private def writeJobConfig(out: DataOutputStream, jobId: String, jobConfig: Config) {
     out.writeUTF(jobId)
-    out.writeUTF(jobConfig.root().render(ConfigRenderOptions.concise()))
+    val content = jobConfig.root().render(ConfigRenderOptions.concise())
+    val bytes = content.getBytes
+    val size = bytes.length
+    out.writeInt(size) // write data length
+    out.write(bytes)  // write data
   }
 
-  private def readJobConfig(in: DataInputStream): (String, Config) = (
-    in.readUTF,
-    ConfigFactory.parseString(in.readUTF)
-  )
+  private def readJobConfig(in: DataInputStream): (String, Config) = {
+    val jobId = in.readUTF
+    val length = in.readInt()   // read data length
+    val bytes = new Array[Byte](length)
+    in.read(bytes)  // read data
+    val content = new String(bytes)
+    (jobId, ConfigFactory.parseString(content))
+  }
 }
