@@ -9,7 +9,7 @@ import scala.collection.mutable
 class JobFileDAO(config: Config) extends JobDAO {
   private val logger = LoggerFactory.getLogger(getClass)
 
-  private val MAX_BUFFER_SIZE = 65535
+  private val charsetName = "UTF-8"
 
   // appName to its set of upload times. Decreasing times in the seq.
   private val apps = mutable.HashMap.empty[String, Seq[DateTime]]
@@ -187,7 +187,7 @@ class JobFileDAO(config: Config) extends JobDAO {
   private def writeJobConfig(out: DataOutputStream, jobId: String, jobConfig: Config) {
     out.writeUTF(jobId)
     val content = jobConfig.root().render(ConfigRenderOptions.concise())
-    val bytes = content.getBytes
+    val bytes = content.getBytes(charsetName)
     val size = bytes.length
     out.writeInt(size) // write data length
     out.write(bytes)  // write data
@@ -198,7 +198,7 @@ class JobFileDAO(config: Config) extends JobDAO {
     val length = in.readInt()   // read data length
     val bytes = new Array[Byte](length)
     in.read(bytes)  // read data
-    val content = new String(bytes)
+    val content = new String(bytes, charsetName)
     (jobId, ConfigFactory.parseString(content))
   }
 }
