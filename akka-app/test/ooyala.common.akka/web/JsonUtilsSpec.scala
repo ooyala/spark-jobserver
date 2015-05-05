@@ -1,8 +1,8 @@
 package ooyala.common.akka.web
 
 import org.joda.time.DateTime
-import org.parboiled.errors.ParsingException
 import org.scalatest.{FunSpec, Matchers}
+import spray.json.JsonParser.ParsingException
 
 class JsonUtilsSpec extends FunSpec with Matchers {
   import spray.json._
