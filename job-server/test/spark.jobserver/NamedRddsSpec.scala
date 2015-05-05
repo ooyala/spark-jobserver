@@ -3,11 +3,10 @@ package spark.jobserver
 import akka.actor.{PoisonPill, Props, ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.spark.SparkContext
-import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.{FunSpec, BeforeAndAfterAll, BeforeAndAfter}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FunSpecLike, Matchers}
 
-class NamedRddsSpec extends TestKit(ActorSystem("NamedRddsSpec")) with FunSpec
-with ImplicitSender with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
+class NamedRddsSpec extends TestKit(ActorSystem("NamedRddsSpec")) with FunSpecLike
+with ImplicitSender with Matchers with BeforeAndAfter with BeforeAndAfterAll {
   System.setProperty("spark.cores.max", Runtime.getRuntime.availableProcessors.toString)
   System.setProperty("spark.executor.memory", "512m")
   System.setProperty("spark.akka.threads", Runtime.getRuntime.availableProcessors.toString)

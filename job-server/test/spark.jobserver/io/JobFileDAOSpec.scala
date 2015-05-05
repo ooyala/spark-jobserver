@@ -6,11 +6,10 @@ import com.google.common.io.Files
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.joda.time.DateTime
-import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.{BeforeAndAfter, FunSpec}
+import org.scalatest.{BeforeAndAfter, FunSpecLike, Matchers}
 import spark.jobserver.TestJarFinder
 
-class JobFileDAOSpec extends TestJarFinder with FunSpec with ShouldMatchers with BeforeAndAfter {
+class JobFileDAOSpec extends TestJarFinder with FunSpecLike with Matchers with BeforeAndAfter {
   private val config = ConfigFactory.load("local.test.jobfiledao.conf")
 
   var dao: JobFileDAO = _

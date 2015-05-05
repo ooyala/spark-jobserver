@@ -4,11 +4,10 @@ import com.codahale.metrics.MetricRegistry
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import ooyala.common.akka.metrics.{MetricsLevel, MetricsWrapper}
 import org.joda.time.DateTime
-import org.scalatest.{BeforeAndAfter, FunSpec}
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{BeforeAndAfter, FunSpec, Matchers}
 import spark.jobserver.InMemoryDAO
 
-class JobDAOMetricsMonitorSpec extends FunSpec with ShouldMatchers with BeforeAndAfter {
+class JobDAOMetricsMonitorSpec extends FunSpec with Matchers with BeforeAndAfter {
   private val jobId = "jobId"
   private val contextName = "contextName"
   private val appName = "appName"

@@ -1,12 +1,11 @@
 package spark.jobserver.io
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{FunSpecLike, Matchers}
 import spark.jobserver.TestJarFinder
 
 
-class JobSqlDAOJdbcConfigSpec extends TestJarFinder with FunSpec with ShouldMatchers {
+class JobSqlDAOJdbcConfigSpec extends TestJarFinder with FunSpecLike with Matchers {
 
   describe("parse MariaDB config") {
     val configStr =
