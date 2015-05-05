@@ -4,14 +4,13 @@ import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FunSpec}
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FunSpecLike, Matchers}
 import scala.concurrent.duration._
 import spark.jobserver.io.JobSqlDAO
 
 
 class LocalContextSupervisorHaSpec(system: ActorSystem) extends TestKit(system) with ImplicitSender
-    with FunSpec with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
+with FunSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll {
 
   def this() = this(ActorSystem("test", LocalContextSupervisorSpec.config))
 
