@@ -2,17 +2,15 @@ package ooyala.common.akka.web
 
 import java.util.concurrent.TimeUnit
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{FunSpec, Matchers}
 import spray.testkit.ScalatestRouteTest
 
 import spray.http.StatusCodes._
 import com.yammer.metrics.Metrics
 import com.yammer.metrics.core.Gauge
 
-class CommonRoutesSpec extends FunSpec with ShouldMatchers with ScalatestRouteTest with CommonRoutes {
+class CommonRoutesSpec extends FunSpec with Matchers with ScalatestRouteTest with CommonRoutes {
   def actorRefFactory = system
-
 
   val metricCounter = Metrics.newCounter(getClass, "test-counter")
   val metricMeter = Metrics.newMeter(getClass, "test-meter", "requests", TimeUnit.SECONDS)

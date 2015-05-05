@@ -266,6 +266,9 @@ or in the job config when using POST /jobs,
 
     spark.context-settings {
         spark.cores.max = 10
+        passthrough {
+            some.custom.hadoop.config = "192.168.1.1"
+        }
     }
 
 For the exact context configuration parameters, see JobManagerActor docs as well as application.conf.

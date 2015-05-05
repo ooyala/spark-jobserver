@@ -2,10 +2,9 @@ package ooyala.common.akka.web
 
 import org.joda.time.DateTime
 import org.parboiled.errors.ParsingException
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{FunSpec, Matchers}
 
-class JsonUtilsSpec extends FunSpec with ShouldMatchers {
+class JsonUtilsSpec extends FunSpec with Matchers {
   import spray.json._
   import spray.json.DefaultJsonProtocol._
 
