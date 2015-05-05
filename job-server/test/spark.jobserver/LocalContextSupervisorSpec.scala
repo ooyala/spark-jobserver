@@ -4,9 +4,7 @@ import akka.actor._
 import akka.testkit.{TestKit, ImplicitSender}
 import com.typesafe.config.ConfigFactory
 import ooyala.common.akka.metrics.MetricsWrapper
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter}
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FunSpecLike, Matchers}
 import spark.jobserver.CommonMessages.{Unsubscribe, JobStarted, Subscribe}
 import spark.jobserver.io.JobDAO
 
@@ -30,6 +28,11 @@ object LocalContextSupervisorSpec {
       context-settings {
         num-cpu-cores = 2
         memory-per-node = 512m
+
+        passthrough {
+          spark.driver.allowMultipleContexts = true  # Ignore the Multiple context exception related with SPARK-2243
+          spark.ui.enabled = false
+        }
       }
     }
     akka.log-dead-letters = 0
@@ -39,7 +42,7 @@ object LocalContextSupervisorSpec {
 }
 
 class LocalContextSupervisorSpec extends TestKit(LocalContextSupervisorSpec.system) with ImplicitSender
-    with FunSpec with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
+with FunSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll {
 
   override def afterAll() {
     ooyala.common.akka.AkkaTestUtils.shutdownAndWait(LocalContextSupervisorSpec.system)
@@ -85,9 +88,11 @@ class LocalContextSupervisorSpec extends TestKit(LocalContextSupervisorSpec.syst
     }
 
     it("should be able to add multiple new contexts") {
+      // serializing the creation at least until SPARK-2243 gets
+      // solved.
       supervisor ! AddContext("c1", contextConfig)
-      supervisor ! AddContext("c2", contextConfig)
       expectMsg(ContextInitialized)
+      supervisor ! AddContext("c2", contextConfig)
       expectMsg(ContextInitialized)
       supervisor ! ListContexts
       expectMsg(Seq("c1", "c2"))
