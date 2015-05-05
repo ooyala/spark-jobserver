@@ -2,10 +2,9 @@ package ooyala.common.akka.metrics
 
 import com.typesafe.config.ConfigFactory
 import java.net.InetAddress
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{FunSpec, Matchers}
 
-class DatadogConfigParserSpec extends FunSpec with ShouldMatchers {
+class DatadogConfigParserSpec extends FunSpec with Matchers {
 
   describe("parses Datadog config") {
     it("should parse a valid config") {

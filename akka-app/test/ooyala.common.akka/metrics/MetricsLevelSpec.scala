@@ -1,9 +1,8 @@
 package ooyala.common.akka.metrics
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{FunSpec, Matchers}
 
-class MetricsLevelSpec extends FunSpec with ShouldMatchers {
+class MetricsLevelSpec extends FunSpec with Matchers {
 
   describe("MetricsLevel") {
     it("should return a valid metric level") {
@@ -17,13 +16,13 @@ class MetricsLevelSpec extends FunSpec with ShouldMatchers {
     }
 
     it("should throw exceptions") {
-      evaluating {
+      an [IllegalArgumentException] should be thrownBy {
         MetricsLevel.valueOf(-1)
-      } should produce [IllegalArgumentException]
+      }
 
-      evaluating {
+      an [IllegalArgumentException] should be thrownBy {
         MetricsLevel.valueOf(4)
-      } should produce [IllegalArgumentException]
+      }
     }
   }
 }
