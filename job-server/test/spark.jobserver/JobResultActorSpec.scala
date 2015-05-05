@@ -1,19 +1,17 @@
 package spark.jobserver
 
-import akka.actor.{Props, PoisonPill, ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestKit, ImplicitSender}
 import com.codahale.metrics.Counter
 import ooyala.common.akka.metrics.MetricsWrapper
-import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.{FunSpec, BeforeAndAfter, BeforeAndAfterAll}
-
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSpecLike, Matchers}
 
 object JobResultActorSpec {
   val system = ActorSystem("test")
 }
 
 class JobResultActorSpec extends TestKit(JobResultActorSpec.system) with ImplicitSender
-with FunSpec with ShouldMatchers with BeforeAndAfter with BeforeAndAfterAll {
+with FunSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll {
 
   import CommonMessages._
 
