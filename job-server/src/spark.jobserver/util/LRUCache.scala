@@ -1,8 +1,10 @@
 package spark.jobserver.util
 
 import java.util.Map.Entry
-import java.lang.ref.SoftReference
+
 import ooyala.common.akka.metrics.MetricsWrapper
+
+import scala.collection.JavaConversions._
 
 /**
  * A convenience class to define a Least-Recently-Used Cache with a maximum size.
@@ -62,4 +64,6 @@ class LRUCache[K, V](cacheHolderClass: Class[_],
       metricHit.inc
       Some(vv)
   }
+
+  def toMap = mapAsScalaMap(cache).toMap
 }
