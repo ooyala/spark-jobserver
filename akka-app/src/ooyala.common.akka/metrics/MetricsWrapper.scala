@@ -17,7 +17,7 @@ object MetricsWrapper {
   // Registers JVM metrics for monitoring
   JvmMetricsWrapper.registerJvmMetrics(registry)
 
-  def startDatadogReporter(config: DatadogConfig) = {
+  def startDatadogReporter(config: DatadogConfig): Unit = {
     val transportOpt: Option[Transport] = config.agentPort.map {
       port =>
         logger.debug("Datadog reporter: datadog agent port - " + port)

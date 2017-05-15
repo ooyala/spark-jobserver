@@ -3,8 +3,9 @@ package spark.jobserver
 import akka.actor.ActorRef
 import ooyala.common.akka.InstrumentedActor
 import ooyala.common.akka.metrics.MetricsWrapper
+import spark.jobserver.util.GuavaCacheUtils._
+
 import scala.collection.mutable
-import spark.jobserver.util.LRUCache
 
 /**
  * It is an actor to manage results that are returned from jobs.
@@ -15,8 +16,9 @@ class JobResultActor extends InstrumentedActor {
   import CommonMessages._
 
   private val config = context.system.settings.config
-  private val cache = new LRUCache[String, Any](getClass,
-    config.getInt("spark.jobserver.job-result-cache-size"))
+
+  private val cache = buildCache[String, Any](config).withMetrics(getClass)
+
   private val subscribers = mutable.HashMap.empty[String, ActorRef] // subscribers
 
   // metrics
@@ -39,7 +41,7 @@ class JobResultActor extends InstrumentedActor {
       }
 
     case GetJobResult(jobId) =>
-      sender ! cache.get(jobId).map(JobResult(jobId, _)).getOrElse(NoSuchJobId)
+      sender ! Option(cache.getIfPresent(jobId)).map(JobResult(jobId, _)).getOrElse(NoSuchJobId)
 
     case JobResult(jobId, result) =>
       cache.put(jobId, result)
@@ -47,5 +49,4 @@ class JobResultActor extends InstrumentedActor {
       subscribers.get(jobId).foreach(_ ! JobResult(jobId, result))
       subscribers.remove(jobId)
   }
-
 }

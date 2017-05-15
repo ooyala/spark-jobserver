@@ -32,6 +32,7 @@ object SparkWebUiActorSpec {
         memory-per-node = 512m      # Executor memory per node, -Xmx style eg 512m, 1G, etc.
       }
       jobserver.job-result-cache-size = 100
+      jobserver.job-result-cache-ttl-seconds = 60
       jobserver.context-creation-timeout = 5 s
       jobserver.context-factory = spark.jobserver.util.DefaultSparkContextFactory
       contexts {
