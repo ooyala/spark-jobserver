@@ -14,12 +14,14 @@ object JobManagerSpec {
   import collection.JavaConverters._
 
   val JobResultCacheSize = 30
+  val JobResultCacheTtlSeconds = 60
   val NumCpuCores = Runtime.getRuntime.availableProcessors()  // number of cores to allocate. Required.
   val MemoryPerNode = "512m"  // Executor memory per node, -Xmx style eg 512m, 1G, etc.
   val MaxJobsPerContext = 2
   val config = {
     val ConfigMap = Map(
       "spark.jobserver.job-result-cache-size" -> JobResultCacheSize,
+      "spark.jobserver.job-result-cache-ttl-seconds" -> JobResultCacheTtlSeconds,
       "num-cpu-cores" -> NumCpuCores,
       "memory-per-node" -> MemoryPerNode,
       "spark.jobserver.max-jobs-per-context" -> MaxJobsPerContext,
