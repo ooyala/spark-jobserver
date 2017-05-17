@@ -4,12 +4,15 @@ import com.typesafe.config.{ConfigRenderOptions, Config, ConfigFactory}
 import java.io.{FileOutputStream, BufferedOutputStream, File}
 import java.sql.Timestamp
 import org.joda.time.DateTime
+import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.slick.jdbc.meta.MTable
 
-
 class JobSqlDAO(config: Config) extends JobDAO {
+  // Helper values & methods to modify the jar name so it does not include special characters (ie. ':')
+  private val hdfsFormat: Option[DateTimeFormatter] = DateTimeFormat.forPattern("YYYY-MM-dd'T'HH-mm-ss'.'SSSZ")
+  implicit private def formatToOpt(dtf: DateTimeFormatter): Option[DateTimeFormatter] = Some(dtf)
 
   private val logger = LoggerFactory.getLogger(getClass)
   private val jdbcConfig =
@@ -24,14 +27,13 @@ class JobSqlDAO(config: Config) extends JobDAO {
 
   import jdbcConfig.jdbcProfile.simple._
 
-  // Definition of the tables
-  private class Jars(tag: Tag) extends Table[(Int, String, Timestamp, Array[Byte])](tag, "JARS") {
+  private class Jars(tag: Tag) extends Table[(Int, String, Timestamp, String)](tag, "JARS") {
     def jarId = column[Int]("JAR_ID", O.PrimaryKey, O.AutoInc)
     def appName = column[String]("APP_NAME")
     def uploadTime = column[Timestamp]("UPLOAD_TIME")
-    def jar = column[Array[Byte]]("JAR")
+    def jarHdfsPath = column[String]("JAR_HDFS_PATH")
     // Every table needs a * projection with the same type as the table's type parameter
-    def * = (jarId, appName, uploadTime, jar)
+    def * = (jarId, appName, uploadTime, jarHdfsPath)
   }
   private val jars = TableQuery[Jars]
 
@@ -173,13 +175,20 @@ class JobSqlDAO(config: Config) extends JobDAO {
     // Must provide a value that will be ignored because the JARS jobId column
     // is tagged with O.AutoInc
     val IGNORED_VAL = -1
+    val hdfsPath = jdbcConfig.hdfsPathInfo.uri
 
-    db withSession {
+    val rowId = db withSession {
       implicit session =>
 
+        //TODO: change the path from the config value..
         (jars returning jars.map(_.jarId)) +=
-          (IGNORED_VAL, jarInfo.appName, convertDateJodaToSql(jarInfo.uploadTime), jarBytes)
+          (IGNORED_VAL, jarInfo.appName, convertDateJodaToSql(jarInfo.uploadTime), hdfsPath)
     }
+
+    val jarName = createJarName(jarInfo.appName, jarInfo.uploadTime, hdfsFormat)
+    HdfsDAOUtil.writeJarToHdfs(hdfsPath, jarName, jarBytes)
+
+    rowId
   }
 
   override def retrieveJarFile(appName: String, uploadTime: DateTime): String = {
@@ -190,21 +199,30 @@ class JobSqlDAO(config: Config) extends JobDAO {
     jarFile.getAbsolutePath
   }
 
+  private def fetchJarFromHdfs(appName:String, uploadTime: DateTime): Array[Byte] = {
+    val hdfsPath = fetchHdfsPath(appName, uploadTime)
+    val jarName = createJarName(appName, uploadTime, hdfsFormat)
+    val bytes = HdfsDAOUtil.fetchJarFromHdfs(hdfsPath, jarName)
+    // TODO: Remove or convert to logging statement
+    //println("bytes: " + bytes.toString())
+    bytes
+  }
+
   // Fetch the jar file from database and cache it into local file system.
   private def fetchAndCacheJarFile(appName: String, uploadTime: DateTime) {
-    val jarBytes = fetchJar(appName, uploadTime)
+    val jarBytes = fetchJarFromHdfs(appName, uploadTime)
     cacheJar(appName, uploadTime, jarBytes)
   }
 
-  // Fetch the jar from the database
-  private def fetchJar(appName: String, uploadTime: DateTime): Array[Byte] = {
+  // Fetch the hdfs path of the jar from the database
+  private def fetchHdfsPath(appName: String, uploadTime: DateTime): String = {
     db withSession {
       implicit session =>
 
         val dateTime = convertDateJodaToSql(uploadTime)
         val query = jars.filter { jar =>
           jar.appName === appName && jar.uploadTime === dateTime
-        }.map( _.jar )
+        }.map( _.jarHdfsPath )
 
         // TODO: check if this list is empty?
         query.list.head
@@ -243,7 +261,9 @@ class JobSqlDAO(config: Config) extends JobDAO {
     }
   }
 
-  private def createJarName(appName: String, uploadTime: DateTime): String = appName + "-" + uploadTime
+  private def createJarName(appName: String, uploadTime: DateTime,
+                            dtf: Option[DateTimeFormatter] = None): String =
+    appName + "-" + dtf.map(_.print(uploadTime)).getOrElse(uploadTime.toString())
 
   // Convert from joda DateTime to java.sql.Timestamp
   private def convertDateJodaToSql(dateTime: DateTime): Timestamp =
