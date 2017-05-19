@@ -4,13 +4,11 @@ import Keys._
 import sbtassembly.Plugin._
 import AssemblyKeys._
 import spray.revolver.RevolverPlugin._
-import spray.revolver.Actions
 import com.typesafe.sbt.SbtScalariform._
 import com.typesafe.sbt.SbtNativePackager._
 import com.typesafe.sbt.SbtGit._
 import org.scalastyle.sbt.ScalastylePlugin
 import scalariform.formatter.preferences._
-import bintray.Plugin.bintrayPublishSettings
 import NativePackagerKeys._
 
 // There are advantages to using real Scala build files with SBT:
@@ -71,7 +69,16 @@ object JobServerBuild extends Build {
         // This lets us add Spark back to the classpath without assembly barfing
         fullClasspath in Revolver.reStart := (fullClasspath in Compile).value
       )
-  ) dependsOn(akkaApp, jobServerApi)
+  ) dependsOn(
+    akkaApp, jobServerApi
+  ) settings(
+    artifact in (Compile, assembly) := {
+      val art = (artifact in (Compile, assembly)).value
+      art.copy(`classifier` = Some("assembly"))
+    },
+    addArtifact(artifact in (Compile, assembly), assembly)
+  )
+
 
   lazy val jobServerTestJar = Project(id = "job-server-tests", base = file("job-server-tests"),
     settings = commonSettings210 ++ Seq(libraryDependencies ++= sparkDeps ++ apiDeps,
@@ -114,7 +121,7 @@ object JobServerBuild extends Build {
 
   lazy val commonSettings210 = Defaults.defaultSettings ++ dirSettings ++ Seq(
     organization := "spark.jobserver",
-    version      := "0.4.1",
+    version      := (version in ThisBuild).value,
     crossPaths   := false,
     scalaVersion := "2.10.4",
     scalaBinaryVersion := "2.10",
@@ -161,7 +168,7 @@ object JobServerBuild extends Build {
     credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
 
     // Disallow publishing SNAPSHOTs by returning an empty location if try to publish SNAPSHOTs
-    publishTo <<= (version) { version: String =>
+    publishTo in ThisBuild <<= (version in ThisBuild) { version: String =>
       val nexus = "http://nexus.ooyala.com/nexus/content/repositories/"
       if (version.trim.endsWith("SNAPSHOT")) None
       else                                   Some("releases" at nexus + "releases/")

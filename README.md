@@ -298,9 +298,22 @@ Contributions via Github Pull Request are welcome.  See the TODO for some ideas.
 
 ### Publishing packages
 
-- Be sure you are in the master project
-- Run `test` to ensure all tests pass
-- Now just run `publish` and package will be published to bintray
+- Adjust project version in version.sbt
+- Now just run `sbt clean test publish` and packages will be published to Nexus
+
+Note that assembly jar will be also published. To modify this behaviour tweak this part of settings 
+in jobServer subproject:
+
+    lazy val jobServer = Project(id = "job-server", base = file("job-server"),
+    ...
+    ...
+    settings(
+        artifact in (Compile, assembly) := {
+          val art = (artifact in (Compile, assembly)).value
+          art.copy(`classifier` = Some("assembly"))
+        },
+        addArtifact(artifact in (Compile, assembly), assembly)
+    )
 
 ## Contact
 
